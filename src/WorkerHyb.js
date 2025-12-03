@@ -53,13 +53,14 @@ self.onmessage  =async(e)=>{
 
 async function init_rnd({canvas,params}) {
     try{
-          if (!canvas) {
+            if (!canvas) {
             throw new Error('Canvas is undefined - transfer failed');
         }
-        
-         if (!(canvas instanceof OffscreenCanvas)) {
+
+        if (!(canvas instanceof OffscreenCanvas)) {
             throw new Error(`Expected OffscreenCanvas, got ${canvas.constructor.name}`);
         }
+
 
            
     console.log('Worker: renderer.init() complete');
@@ -68,6 +69,9 @@ async function init_rnd({canvas,params}) {
         const height = params.height || 600;
         const pixelRatio = params.pixelRatio || 1;
 
+                canvas.width = width * pixelRatio;
+        canvas.height = height * pixelRatio;
+
          threeObjs.renderer =  new THREE.WebGPURenderer({
                 canvas,
                 antialias: params.antialias ?? true,
@@ -75,12 +79,11 @@ async function init_rnd({canvas,params}) {
             });
 
     await threeObjs.renderer.init();
-        
-        await new Promise(resolve=> setTimeout(resolve,0));
 
     threeObjs.renderer.setSize(width, height, false );
     threeObjs.renderer.setPixelRatio(pixelRatio );
     threeObjs.device = threeObjs.renderer.backend?.device ?? null;
+
     console.log('Worker: posting ready message');
         self.postMessage({ type: 'ready', message: 'Renderer initialized' });
     }catch(err){
@@ -131,6 +134,10 @@ function loadScene(data){
         console.log('Worker: loadScene received', data);
         threeObjs.scene = threeObjs.objLoader.parse(data.scene)
         threeObjs.camera = threeObjs.objLoader.parse(data.cam)
+
+        threeObjs.camera.updateProjectionMatrix();
+threeObjs.camera.updateMatrixWorld();
+
 
         console.log('Worker: scene parsed', {
             childCount: threeObjs.scene.children.length,

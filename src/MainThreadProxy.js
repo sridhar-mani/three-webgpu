@@ -7,6 +7,7 @@ class WorkerManager {
         this.fW_queue = new Map();
         this.canvas = canvas;
         this.rnW = null;
+        
 
         return new Proxy(this, {
             get(target, prop){

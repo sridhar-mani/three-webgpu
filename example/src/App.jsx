@@ -6,9 +6,12 @@ import WorkerManager from 'three-webgpu-worker';
 
 function App() {
   const canvasRef = useRef(null);
+  const initRef = useRef(false);
  
 
   useEffect(()=>{
+       if (initRef.current) return;
+    initRef.current = true;
     let animatId;
      const threejsObs = {
     renderer: null,
@@ -19,9 +22,9 @@ function App() {
 
 
     const ani =async ()=>{
-      if(!canvasRef.current.firstChild) return 
-      threejsObs.workerManager = new WorkerManager({canvas:canvasRef.current.firstChild});
-      await threejsObs.workerManager._intializeRendererWorker({canvas:canvasRef.current.firstChild})
+      if(!canvasRef.current) return 
+      threejsObs.workerManager = new WorkerManager({canvas:canvasRef.current});
+      await threejsObs.workerManager._intializeRendererWorker({})
 
     threejsObs.workerManager.setSize(canvasRef.current.clientWidth,canvasRef.current.clientHeight)
     const dpr = Math.min(window.devicePixelRatio || 1,2)
@@ -31,7 +34,9 @@ function App() {
     threejsObs.sc = new THREE.Scene();
   threejsObs.cam = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 1,10000);
     threejsObs.cam.position.set(20,20,20)
-    const ctrls = new OrbitControls(threejsObs.cam, threejsObs.renderer.domElement);
+
+
+    const ctrls = new OrbitControls(threejsObs.cam, canvasRef.current);
     ctrls.enablePan = false
     threejsObs.sc.add(new THREE.AmbientLight(0xffffff, 1));
 
@@ -123,7 +128,7 @@ function App() {
     function animate(){
       animatId = requestAnimationFrame(animate)
       ctrls.update();
-    threejsObs.renderer.render(threejsObs.sc, threejsObs.cam)
+    threejsObs.workerManager.render(threejsObs.sc, threejsObs.cam)
 
     }
     animate()
@@ -134,7 +139,7 @@ function App() {
 
     return ()=>{
       if(animatId) cancelAnimationFrame(animatId)
-      if(canvasRef.current) canvasRef.current.removeChild(threejsObs.renderer.domElement)
+      
       if(threejsObs.renderer) threejsObs.renderer.dispose()
     }
   },[])

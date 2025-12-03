@@ -1,7 +1,7 @@
 {
-  "name": "three-webgpu",
+  "name": "threegpu",
   "version": "0.0.1-beta",
-  "description": "",
+  "description": "Off-main-thread WebGPU renderer for Three.js using Web Work",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "exports": {

@@ -65,13 +65,50 @@ class WorkerManager {
 
     }
 
+    async loadScene({sc,cam}){
+        this.rnW.postMessage(
+            {
+                type:'load_scene',
+                data:{
+                    scene:sc.toJSON(),
+                    cam:cam.toJSON()
+                }
+            }
+        )
+    }
+
+    updateCamera(camera){
+        if(!this.isReady) return;
+
+        this.rnW.postMessage({
+            type:'update_camera',
+            data:{
+                position: camera.position.toArray(),
+                quaternion: camera.quaternion.toArray()
+            }
+        })
+    }
+
+    updateTransform(name,pos,rot,scale){
+        if(!this.isReady) return;
+
+        this.rnW.postMessage({
+            type:'update_transform',
+            data:{
+                name,
+                pos: pos? pos:null,
+                rot: rot?rot:null,
+                scale: scale? scale:null
+            }
+        })
+    }
+
     render(scene, camera){
             if (!this.isReady) {
             return;
         }
 
-           const scDat = scene.toJSON?.() ?? null;
-           console.log(scDat,'this is it')
+        const scDat = scene.toJSON?.() ?? null;
 
         this.rnW.postMessage({
             type: 'render',
@@ -80,8 +117,11 @@ class WorkerManager {
                 cam: camera.toJSON()
             }
         });
+    }
 
-        
+    stopRenderLoop(){
+        if(!this.rnW) return;
+        this.rnW.postMessage({type:'stop_loop'});
     }
 
     _callRendererMethod(methodName, params){
@@ -115,29 +155,39 @@ class WorkerManager {
                 data:args_ar
             }
         })
-
-        cmW.worker.onmessage=(e)=>{
+        
+        return new Promise((resolve,rej)=>{
+            cmW.worker.onmessage=(e)=>{
             const {res,type,error,id} = e.data;
 
             if(type=='error'){
                  console.error('Compute error:', error);
-                return {
-                     'status':'error',
-            'message':'computation failed',
-            'data': error,
-            'id':id
-                }
+                rej({
+                      status: 'error',
+                        message: 'computation failed',
+                        data: error,
+                        id: id
+                })
+            }else{
+                 resolve({
+                        status: 'success',
+                        message: 'computation done',
+                        data: res
+                    });
             }
-
-            console.log('Compute result:', res);
-
-            return {
-                
-                 'status':'success',
-            'message':'computation done success',
-            'data':res
-            }
+            cmW.worker.terminate();
+            this.fW_queue.delete(id);
         }
+
+        cmW.worker.onerror = (err)=>{
+            rej({
+                status: 'error',
+                message: err.message
+            })
+            cmW.worker.terminate();
+            this.fW_queue.delete(id);
+        }
+        })
     }
 }
 

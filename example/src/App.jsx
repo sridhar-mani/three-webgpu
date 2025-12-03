@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import * as THREE from 'three/webgpu'
 import './App.css'
 import { OrbitControls, STLLoader } from 'three/examples/jsm/Addons.js';
@@ -129,13 +129,19 @@ function App() {
      const geometry = new THREE.BoxGeometry(1, 1, 1);
         const material = new THREE.MeshStandardMaterial({ color: 0x00ff88 });
         const cube = new THREE.Mesh(geometry, material);
+        cube.name = 'cube';
         threejsObs.sc.add(cube);
- 
+
+        
+        await threejsObs.workerManager.loadScene({
+          sc: threejsObs.sc,
+          cam: threejsObs.cam
+        })
 
     function animate(){
       animatId = requestAnimationFrame(animate)
       ctrls.update();
-    threejsObs.workerManager.render(threejsObs.sc, threejsObs.cam)
+    threejsObs.workerManager.render( threejsObs.cam)
 
     }
     animate()
@@ -147,7 +153,7 @@ function App() {
     return ()=>{
       if(animatId) cancelAnimationFrame(animatId)
       
-      if(threejsObs.renderer) threejsObs.renderer.dispose()
+      if(threejsObs.workerManager) threejsObs.workerManager.stopRenderLoop();
     }
   },[])
 

@@ -4,6 +4,10 @@ import ALLOWED_METHODS from './expMethods';
 
 class WorkerManager {
     constructor({ canvas}={}){
+
+          if (!canvas) {
+            throw new Error("WorkerManager requires a 'canvas' element");
+        }
         this.fW_queue = new Map();
         this.canvas = canvas;
         this.rnW = null;

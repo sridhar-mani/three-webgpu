@@ -9,22 +9,28 @@ function App() {
   const initRef = useRef(false);
  
 
-  useEffect(()=>{
-       if (initRef.current) return;
-    initRef.current = true;
-    let animatId;
-     const threejsObs = {
+  useEffect(()=>{     
+         const threejsObs = {
     renderer: null,
     cam:null,
     sc:null,
     workerManager:null
   }
 
+    if(!canvasRef.current) return 
+      threejsObs.workerManager = new WorkerManager({canvas:canvasRef.current});
+   
+       if (initRef.current) return;
+    initRef.current = true;
+    let animatId;
+
 
     const ani =async ()=>{
-      if(!canvasRef.current) return 
-      threejsObs.workerManager = new WorkerManager({canvas:canvasRef.current});
-      await threejsObs.workerManager._intializeRendererWorker({})
+    await threejsObs.workerManager._intializeRendererWorker({
+                antialias: true, 
+          alpha: false 
+
+    })
 
     threejsObs.workerManager.setSize(canvasRef.current.clientWidth,canvasRef.current.clientHeight)
     const dpr = Math.min(window.devicePixelRatio || 1,2)

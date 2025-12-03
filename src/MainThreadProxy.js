@@ -26,7 +26,7 @@ class WorkerManager {
     }
 
     async _intializeRendererWorker(params){
-        this.rnW = new Worker(new URL('./WorkerHyb.js',import.meta.url),{type:'module'});
+        this.rnW = new Worker(new URL('./workerhyb.js',import.meta.url),{type:'module'});
         
 
         const offscreen = this.canvas.transferControlToOffscreen();
@@ -92,16 +92,16 @@ class WorkerManager {
 
     async runCompute({func,args_ar}){
         const id = generateUUID();
-        const cmW = {worker:new Worker(new URL('./WorkerHyb.js',import.meta.url), {type:'module'}),id:id,status: 'started'};
+        const cmW = {worker:new Worker(new URL('./workerhyb.js',import.meta.url), {type:'module'}),id:id,status: 'started'};
 
         this.fW_queue.set(id, cmW)
 
-        cmW.worker.postMessage('run_compute',{
+        cmW.worker.postMessage({
             type:'compute',
             data:{
                 id: cmW.id,
-            func: func.toString(),
-            data:args_ar
+                func: func.toString(),
+                data:args_ar
             }
         })
 

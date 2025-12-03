@@ -1,17 +1,52 @@
 {
   "name": "three-webgpu",
-  "version": "1.0.0",
+  "version": "0.0.1-beta",
   "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./worker": "./dist/worker.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup -c",
+    "prepublish": "npm run build",
+    "dev": "rollup -c -w"
+  },
+  "keywords": [
+    "threejs",
+    "webgpu",
+    "worker",
+    "offscreen-canvas",
+    "performance",
+    "3d",
+    "graphics"
+  ],
+  "author": "Sridhar Mani",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
-    "@sridhar-mani/dsa-js": "^1.0.5",
-    "three": "^0.181.2"
+    "@sridhar-mani/dsa-js": "^1.0.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sridhar-mani/three-webgpu"
+  },
+  "peerDependencies": {
+    "three": ">=0.181.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^0.4.4",
+    "rollup": "^4.53.3"
   }
 }

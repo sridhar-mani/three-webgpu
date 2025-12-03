@@ -98,11 +98,13 @@ function App() {
         const gridSize = Math.ceil(Math.cbrt(200));
         const spacing = 5;
         let count = 0;
+      const mesh = new THREE.InstancedMesh( geo, material );
+
+        const wireframeMesh = new THREE.InstancedMesh(geo, wMat);
         
             for(let x = 0; x < gridSize && count < 200; x++){
               for(let y = 0; y < gridSize && count < 200; y++){
                 for(let z = 0; z < gridSize && count < 200; z++){
-      const mesh = new THREE.Mesh( geo, material );
       mesh.scale.setScalar(scaleFactor);
       mesh.position.set(
         (x-gridSize/2)*spacing,(y-gridSize/2)*spacing,(z-gridSize/2)*spacing
@@ -110,7 +112,6 @@ function App() {
         threejsObs.sc.add( mesh );
 
         
-        const wireframeMesh = new THREE.Mesh(geo, wMat);
         wireframeMesh.scale.setScalar(scaleFactor);
         wireframeMesh.position.copy(mesh.position);
         threejsObs.sc.add(wireframeMesh);

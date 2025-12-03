@@ -21,8 +21,7 @@ function App() {
     const ani =async ()=>{
       threejsObs.workerManager = new WorkerManager({canvas:canvasRef.current});
       await threejsObs.workerManager._intializeRendererWorker({canvas:canvasRef.current})
-          threejsObs.renderer = new THREE.WebGPURenderer();
-    canvasRef.current.appendChild(threejsObs.renderer.domElement)
+
     threejsObs.renderer.setSize(canvasRef.current.clientWidth,canvasRef.current.clientHeight)
     const dpr = Math.min(window.devicePixelRatio || 1,2)
     threejsObs.renderer.setPixelRatio(dpr);

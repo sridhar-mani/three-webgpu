@@ -70,12 +70,19 @@ class WorkerManager {
     }
 
     async loadScene({sc,cam}){
+        const sceneJSON = sc.toJSON();
+        const camJSON = cam.toJSON();
+        console.log('MainThread: sending scene to worker', {
+            sceneChildren: sc.children.length,
+            sceneJSON: sceneJSON,
+            camPos: cam.position.toArray()
+        });
         this.rnW.postMessage(
             {
                 type:'load_scene',
                 data:{
-                    scene:sc.toJSON(),
-                    cam:cam.toJSON()
+                    scene: sceneJSON,
+                    cam: camJSON
                 }
             }
         )

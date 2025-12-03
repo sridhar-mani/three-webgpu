@@ -1,11 +1,10 @@
-import { ObjectLoader } from 'three';
 import * as THREE from 'three/webgpu';
 import ALLOWED_METHODS from './expMethods.js';
 
 const threeObjs = {
     renderer: null,
     device: null,
-    objLoader: new ObjectLoader(),
+    objLoader: new THREE.ObjectLoader(),
     scene: null,
     camera: null,
     isRendering: false
@@ -128,12 +127,24 @@ function call_func({name, params, id}) {
 }
 
 function loadScene(data){
-    threeObjs.scene = threeObjs.objLoader.parse(data.scene)
-    threeObjs.camera = threeObjs.objLoader.parse(data.cam)
+    try {
+        console.log('Worker: loadScene received', data);
+        threeObjs.scene = threeObjs.objLoader.parse(data.scene)
+        threeObjs.camera = threeObjs.objLoader.parse(data.cam)
 
-    startInternalLoop();
+        console.log('Worker: scene parsed', {
+            childCount: threeObjs.scene.children.length,
+            children: threeObjs.scene.children.map(c => ({ name: c.name, type: c.type })),
+            cameraPos: threeObjs.camera.position.toArray()
+        });
 
-    self.postMessage({type:'scene_loaded'})
+        startInternalLoop();
+
+        self.postMessage({type:'scene_loaded'})
+    } catch(err) {
+        console.error('Worker: loadScene error', err);
+        self.postMessage({type:'error', message: `loadScene failed: ${err.message}`});
+    }
 }
 
 function updateCamera(data){
@@ -159,12 +170,29 @@ function updateTransform(data){
 function startInternalLoop(){
     if(threeObjs.isRendering) return
     threeObjs.isRendering = true;
+    let frameCount = 0;
 
     function loop(){
         if(!threeObjs.isRendering) return
 
 
-    if(threeObjs.renderer && threeObjs.camera && threeObjs.scene) threeObjs.renderer.render(threeObjs.scene,threeObjs.camera)
+    if(threeObjs.renderer && threeObjs.camera && threeObjs.scene){
+        if(frameCount < 5) {
+            console.log('Worker: rendering frame', frameCount, {
+                sceneChildren: threeObjs.scene.children.length,
+                camPos: threeObjs.camera.position.toArray()
+            });
+        }
+        threeObjs.renderer.render(threeObjs.scene,threeObjs.camera)
+        frameCount++;
+
+    } else {
+            console.warn('Worker: Missing renderer/camera/scene', {
+                hasRenderer: !!threeObjs.renderer,
+                hasCamera: !!threeObjs.camera,
+                hasScene: !!threeObjs.scene
+            });
+        }
 
         requestAnimationFrame(loop)
 

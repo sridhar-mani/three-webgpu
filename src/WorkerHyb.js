@@ -54,18 +54,28 @@ self.onmessage  =async(e)=>{
 
 async function init_rnd({canvas,params}) {
     try{
-            threeObjs.renderer =  new THREE.WebGPURenderer({
+          if (!canvas) {
+            throw new Error('Canvas is undefined - transfer failed');
+        }
+        
+         if (!(canvas instanceof OffscreenCanvas)) {
+            throw new Error(`Expected OffscreenCanvas, got ${canvas.constructor.name}`);
+        }
+
+           
+    console.log('Worker: renderer.init() complete');
+
+            const width = params.width || 800;
+        const height = params.height || 600;
+        const pixelRatio = params.pixelRatio || 1;
+
+         threeObjs.renderer =  new THREE.WebGPURenderer({
                 canvas,
                 antialias: params.antialias ?? true,
                 alpha: params.alpha ?? false
             });
 
     await threeObjs.renderer.init();
-    console.log('Worker: renderer.init() complete');
-
-            const width = params.width || 800;
-        const height = params.height || 600;
-        const pixelRatio = params.pixelRatio || 1;
         
         await new Promise(resolve=> setTimeout(resolve,0));
 

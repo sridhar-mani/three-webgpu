@@ -19,8 +19,9 @@ function App() {
 
 
     const ani =async ()=>{
-      threejsObs.workerManager = new WorkerManager({canvas:canvasRef.current});
-      await threejsObs.workerManager._intializeRendererWorker({canvas:canvasRef.current})
+      if(!canvasRef.current.firstChild) return 
+      threejsObs.workerManager = new WorkerManager({canvas:canvasRef.current.firstChild});
+      await threejsObs.workerManager._intializeRendererWorker({canvas:canvasRef.current.firstChild})
 
     threejsObs.renderer.setSize(canvasRef.current.clientWidth,canvasRef.current.clientHeight)
     const dpr = Math.min(window.devicePixelRatio || 1,2)

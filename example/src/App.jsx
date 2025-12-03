@@ -38,11 +38,13 @@ function App() {
     
     
     threejsObs.sc = new THREE.Scene();
-  threejsObs.cam = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 1,10000);
+  threejsObs.cam = new THREE.PerspectiveCamera(40, canvasRef.current.clientWidth/canvasRef.current.clientHeight, 1,10000);
     threejsObs.cam.position.set(20,20,20)
+    threejsObs.cam.lookAt(0, 0, 0)
 
 
     const ctrls = new OrbitControls(threejsObs.cam, canvasRef.current);
+    ctrls.target.set(0, 0, 0);
     ctrls.enablePan = false
     threejsObs.sc.add(new THREE.AmbientLight(0xffffff, 1));
 

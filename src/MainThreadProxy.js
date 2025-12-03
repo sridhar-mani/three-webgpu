@@ -41,6 +41,7 @@ class WorkerManager {
         
         switch(type) {
             case 'ready':
+                this.isReady=true;
                 console.log('Main: Worker ready');
                 if (this._readyResolver) {
                     this._readyResolver({ status: 'success', message: 'Worker initialized', data: this.rnW });

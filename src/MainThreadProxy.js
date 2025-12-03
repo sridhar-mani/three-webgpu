@@ -1,6 +1,6 @@
 import { generateUUID } from 'three/src/math/MathUtils.js';
 import * as THREE from 'three/webgpu';
-import ALLOWED_METHODS from './expMethods';
+import ALLOWED_METHODS from './expMethods.js';
 
 class WorkerManager {
     constructor({ canvas}={}){
@@ -11,6 +11,7 @@ class WorkerManager {
         this.fW_queue = new Map();
         this.canvas = canvas;
         this.rnW = null;
+          this.isReady = false;
         
 
         return new Proxy(this, {
@@ -31,9 +32,7 @@ class WorkerManager {
     }
 
     async _intializeRendererWorker(params){
-        this.rnW = new Worker(new URL('/workerhyb.js',import.meta.url),{type:'module'});
-
-        console.log(params)
+        this.rnW = new Worker(new URL('./WorkerHyb.js',import.meta.url),{type:'module'});
 
         const offscreen = this.canvas.transferControlToOffscreen();
 
@@ -53,6 +52,7 @@ class WorkerManager {
             console.error('Worker error:', e.data.message);
             rej(new Error(e.data.message));
         }else if(type == 'ready'){
+             this.isReady = true;
             
         res({
             'status':'success',
@@ -66,7 +66,12 @@ class WorkerManager {
     }
 
     render(scene, camera){
+            if (!this.isReady) {
+            return;
+        }
+
            const scDat = scene.toJSON?.() ?? null;
+           console.log(scDat,'this is it')
 
         this.rnW.postMessage({
             type: 'render',
@@ -98,7 +103,7 @@ class WorkerManager {
 
     async runCompute({func,args_ar}){
         const id = generateUUID();
-        const cmW = {worker:new Worker(new URL('/workerhyb.js',import.meta.url), {type:'module'}),id:id,status: 'started'};
+        const cmW = {worker:new Worker(new URL('./WorkerHyb.js',import.meta.url), {type:'module'}),id:id,status: 'started'};
 
         this.fW_queue.set(id, cmW)
 

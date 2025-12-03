@@ -1,6 +1,6 @@
 import { ObjectLoader } from 'three';
 import * as THREE from 'three/webgpu';
-import ALLOWED_METHODS from './expMethods';
+import ALLOWED_METHODS from './expMethods.js';
 
 const threeObjs = {
     renderer: null,
@@ -41,7 +41,7 @@ async function init_rnd({canvas,params}) {
     threeObjs.renderer =  new THREE.WebGPURenderer({canvas,...params});
     await threeObjs.renderer.init();
     threeObjs.device = threeObjs.renderer.backend?.device ?? null;
-    self.postMessage({type:'ready'})
+        self.postMessage({ type: 'ready', message: 'Renderer initialized' });
 }
 
 function call_func({name, params, id}) {
@@ -83,6 +83,7 @@ function call_func({name, params, id}) {
 function render({scene,cam}){
     const rmtSc = threeObjs.objLoader.parse(scene);
     const rmtCam = threeObjs.objLoader.parse(cam);
+
 
     threeObjs.renderer.render(rmtSc,rmtCam);
 }

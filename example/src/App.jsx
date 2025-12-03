@@ -16,26 +16,26 @@ function App() {
     sc:null,
     workerManager:null
   }
+       if (initRef.current) return;
 
     if(!canvasRef.current) return 
+    initRef.current = true;
+
       threejsObs.workerManager = new WorkerManager({canvas:canvasRef.current});
    
-       if (initRef.current) return;
-    initRef.current = true;
     let animatId;
 
 
     const ani =async ()=>{
-    await threejsObs.workerManager._intializeRendererWorker({
-                antialias: true, 
-          alpha: false 
-
+    const result = await threejsObs.workerManager._intializeRendererWorker({
+            width: canvasRef.current.clientWidth,
+        height: canvasRef.current.clientHeight,
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
     })
 
-    threejsObs.workerManager.setSize(canvasRef.current.clientWidth,canvasRef.current.clientHeight)
-    const dpr = Math.min(window.devicePixelRatio || 1,2)
-    threejsObs.workerManager.setPixelRatio(dpr);
-    await threejsObs.workerManager.init()
+    console.log(result)
+
+    
     
     threejsObs.sc = new THREE.Scene();
   threejsObs.cam = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 1,10000);
@@ -51,85 +51,86 @@ function App() {
     threejsObs.sc.add(dLight)
   
 
-       const material = new THREE.MeshPhongNodeMaterial( {
-        color: 0x00ff, 
-        flatShading: false,
-        transparent: true,
-        opacity: 1,
-        shininess:300,
-        specular: 0xffffff,
-        metalness:0.9,
-        roughness:0.1,
-        reflectivity: 1.0,
-        clearcoat: 1.0,
-        clearcoatRoughness: 0.1,
-    } );
+    //    const material = new THREE.MeshPhongNodeMaterial( {
+    //     color: 0x00ff, 
+    //     flatShading: false,
+    //     transparent: true,
+    //     opacity: 1,
+    //     shininess:300,
+    //     specular: 0xffffff,
+    //     metalness:0.9,
+    //     roughness:0.1,
+    //     reflectivity: 1.0,
+    //     clearcoat: 1.0,
+    //     clearcoatRoughness: 0.1,
+    // } );
 
-    const wMat = new THREE.MeshBasicMaterial(
-      {
-        color: 0xffffff,
-        wireframe:true,
-        transparent: true,
-        opacity: 0.8
-      }
-    )
-
-
+    // const wMat = new THREE.MeshBasicMaterial(
+    //   {
+    //     color: 0xffffff,
+    //     wireframe:true,
+    //     transparent: true,
+    //     opacity: 0.8
+    //   }
+    // )
 
 
-    const loader = new STLLoader();
-    loader.loadAsync('/Menger_sponge_sample.stl').then((geo)=>{
+
+
+    // const loader = new STLLoader();
+    // loader.loadAsync('/Menger_sponge_sample.stl').then((geo)=>{
    
-      geo.center()
-        geo.computeBoundingBox();
-        const bbox = geo.boundingBox;
+    //   geo.center()
+    //     geo.computeBoundingBox();
+    //     const bbox = geo.boundingBox;
 
 
-        const size = new THREE.Vector3();
-        bbox.getSize(size);
+    //     const size = new THREE.Vector3();
+    //     bbox.getSize(size);
 
-        const targetSize = 3;
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const scaleFactor = targetSize/maxDim;
+    //     const targetSize = 3;
+    //     const maxDim = Math.max(size.x, size.y, size.z);
+    //     const scaleFactor = targetSize/maxDim;
 
-        const gridSize = Math.ceil(Math.cbrt(200));
-        const spacing = 5;
-        let count = 0;
+    //     const gridSize = Math.ceil(Math.cbrt(200));
+    //     const spacing = 5;
+    //     let count = 0;
         
-            for(let x = 0; x < gridSize && count < 200; x++){
-              for(let y = 0; y < gridSize && count < 200; y++){
-                for(let z = 0; z < gridSize && count < 200; z++){
-      const mesh = new THREE.Mesh( geo, material );
-      mesh.scale.setScalar(scaleFactor);
-      mesh.position.set(
-        (x-gridSize/2)*spacing,(y-gridSize/2)*spacing,(z-gridSize/2)*spacing
-      )
-        threejsObs.sc.add( mesh );
+    //         for(let x = 0; x < gridSize && count < 200; x++){
+    //           for(let y = 0; y < gridSize && count < 200; y++){
+    //             for(let z = 0; z < gridSize && count < 200; z++){
+    //   const mesh = new THREE.Mesh( geo, material );
+    //   mesh.scale.setScalar(scaleFactor);
+    //   mesh.position.set(
+    //     (x-gridSize/2)*spacing,(y-gridSize/2)*spacing,(z-gridSize/2)*spacing
+    //   )
+    //     threejsObs.sc.add( mesh );
 
         
-        const wireframeMesh = new THREE.Mesh(geo, wMat);
-        wireframeMesh.scale.setScalar(scaleFactor);
-        wireframeMesh.position.copy(mesh.position);
-        threejsObs.sc.add(wireframeMesh);
+    //     const wireframeMesh = new THREE.Mesh(geo, wMat);
+    //     wireframeMesh.scale.setScalar(scaleFactor);
+    //     wireframeMesh.position.copy(mesh.position);
+    //     threejsObs.sc.add(wireframeMesh);
 
-        count++
-                }
-              }
-            }
+    //     count++
+    //             }
+    //           }
+    //         }
 
-            const gridExtend = (gridSize * spacing)/2
-            threejsObs.cam.position.set(gridExtend * 1.5, gridExtend * 1.2, gridExtend * 1.5);
-            threejsObs.cam.lookAt(0,0,0);
+    //         const gridExtend = (gridSize * spacing)/2
+    //         threejsObs.cam.position.set(gridExtend * 1.5, gridExtend * 1.2, gridExtend * 1.5);
+    //         threejsObs.cam.lookAt(0,0,0);
 
 
-    }).catch((err)=>{
-      console.error('Failed to load stl:', err);
+    // }).catch((err)=>{
+    //   console.error('Failed to load stl:', err);
       
-    })
-
-    // for(let i=0;i< 20000;i++){
-
-    // }    
+    // })
+     const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshStandardMaterial({ color: 0x00ff88 });
+        const cube = new THREE.Mesh(geometry, material);
+        threejsObs.sc.add(cube);
+ 
 
     function animate(){
       animatId = requestAnimationFrame(animate)

@@ -98,9 +98,10 @@ function App() {
         const gridSize = Math.ceil(Math.cbrt(200));
         const spacing = 5;
         let count = 0;
-      const mesh = new THREE.InstancedMesh( geo, material );
+        const instanceCount = gridSize * gridSize * gridSize;
+      const mesh = new THREE.InstancedMesh( geo, material,instanceCount );
 
-        const wireframeMesh = new THREE.InstancedMesh(geo, wMat);
+        const wireframeMesh = new THREE.InstancedMesh(geo, wMat,instanceCount);
         
             for(let x = 0; x < gridSize && count < 200; x++){
               for(let y = 0; y < gridSize && count < 200; y++){

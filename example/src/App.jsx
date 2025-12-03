@@ -23,10 +23,10 @@ function App() {
       threejsObs.workerManager = new WorkerManager({canvas:canvasRef.current.firstChild});
       await threejsObs.workerManager._intializeRendererWorker({canvas:canvasRef.current.firstChild})
 
-    threejsObs.renderer.setSize(canvasRef.current.clientWidth,canvasRef.current.clientHeight)
+    threejsObs.workerManager.setSize(canvasRef.current.clientWidth,canvasRef.current.clientHeight)
     const dpr = Math.min(window.devicePixelRatio || 1,2)
-    threejsObs.renderer.setPixelRatio(dpr);
-    await threejsObs.renderer.init()
+    threejsObs.workerManager.setPixelRatio(dpr);
+    await threejsObs.workerManager.init()
     
     threejsObs.sc = new THREE.Scene();
   threejsObs.cam = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 1,10000);

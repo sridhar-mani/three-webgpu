@@ -97,34 +97,45 @@ function App() {
 
         const gridSize = Math.ceil(Math.cbrt(200));
         const spacing = 5;
-        let count = 0;
+        let idx=0;
         const instanceCount = gridSize * gridSize * gridSize;
-      const mesh = new THREE.InstancedMesh( geo, material,instanceCount );
+      const instancedMesh = new THREE.InstancedMesh( geo, material,instanceCount );
 
-        const wireframeMesh = new THREE.InstancedMesh(geo, wMat,instanceCount);
+        const instancedWireframe = new THREE.InstancedMesh(geo, wMat,instanceCount);
         
-            for(let x = 0; x < gridSize && count < 200; x++){
-              for(let y = 0; y < gridSize && count < 200; y++){
-                for(let z = 0; z < gridSize && count < 200; z++){
-      mesh.scale.setScalar(scaleFactor);
-      mesh.position.set(
-        (x-gridSize/2)*spacing,(y-gridSize/2)*spacing,(z-gridSize/2)*spacing
-      )
-        threejsObs.sc.add( mesh );
-
         
-        wireframeMesh.scale.setScalar(scaleFactor);
-        wireframeMesh.position.copy(mesh.position);
-        threejsObs.sc.add(wireframeMesh);
-
-        count++
+const matrix = new THREE.Matrix4();
+const position = new THREE.Vector3();
+const rotation = new THREE.Quaternion();
+const scale = new THREE.Vector3(scaleFactor, scaleFactor, scaleFactor);
+            for(let x = 0; x < gridSize ; x++){
+              for(let y = 0; y < gridSize ; y++){
+                for(let z = 0; z < gridSize ; z++){
+                 position.set(
+                (x - gridSize / 2) * spacing,
+                (y - gridSize / 2) * spacing,
+                (z - gridSize / 2) * spacing
+            );
+            
+            matrix.compose(position, rotation, scale);
+            instancedMesh.setMatrixAt(idx, matrix);
+            instancedWireframe.setMatrixAt(idx, matrix);
+            idx++;
                 }
               }
             }
+instancedMesh.instanceMatrix.needsUpdate = true;
+instancedWireframe.instanceMatrix.needsUpdate = true;
 
-            const gridExtend = (gridSize * spacing)/2
-            threejsObs.cam.position.set(gridExtend * 1.5, gridExtend * 1.2, gridExtend * 1.5);
-            threejsObs.cam.lookAt(0,0,0);
+threejsObs.sc.add(instancedMesh);
+threejsObs.sc.add(instancedWireframe);
+
+instancedMesh.userData.instanceMatrices = Array.from(instancedMesh.instanceMatrix.array);
+instancedWireframe.userData.instanceMatrices = Array.from(instancedWireframe.instanceMatrix.array);
+
+const gridExtend = (gridSize * spacing) / 2;
+threejsObs.cam.position.set(gridExtend * 1.5, gridExtend * 1.2, gridExtend * 1.5);
+threejsObs.cam.lookAt(0, 0, 0);
 
 
     }).catch((err)=>{

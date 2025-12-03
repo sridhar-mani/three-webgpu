@@ -141,7 +141,14 @@ function loadScene(data){
         threeObjs.scene = threeObjs.objLoader.parse(data.scene)
         threeObjs.camera = threeObjs.objLoader.parse(data.cam)
         threeObjs.scene.background = new THREE.Color(data.bgColor);
-
+    threeObjs.scene.traverse((obj) => {
+        if (obj.isInstancedMesh && obj.userData.instanceMatrices) {
+            obj.instanceMatrix.array.set(obj.userData.instanceMatrices);
+            obj.instanceMatrix.needsUpdate = true;
+            console.log(`Worker: Restored ${obj.count} instances for`, obj.name || 'mesh');
+        }
+    });
+    
 
         threeObjs.camera.updateProjectionMatrix();
 threeObjs.camera.updateMatrixWorld();

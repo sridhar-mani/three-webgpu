@@ -141,7 +141,7 @@ function App() {
     function animate(){
       animatId = requestAnimationFrame(animate)
       ctrls.update();
-    threejsObs.workerManager.render( threejsObs.cam)
+    threejsObs.workerManager.updateCamera( threejsObs.cam)
 
     }
     animate()

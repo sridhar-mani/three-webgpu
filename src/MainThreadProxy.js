@@ -40,7 +40,11 @@ class WorkerManager {
             type: 'init_rd',
             data: {
                 canvas: offscreen,
-                params
+                params: {
+                    width: params.width || this.canvas.clientWidth || 800,
+                    height: params.height || this.canvas.clientHeight || 600,
+                    pixelRatio: params.pixelRatio || 1
+                }
             }
         }, [offscreen]);
 

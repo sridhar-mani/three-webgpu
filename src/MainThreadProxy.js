@@ -34,7 +34,55 @@ class WorkerManager {
     async _intializeRendererWorker(params){
         this.rnW = new Worker(new URL('./WorkerHyb.js',import.meta.url),{type:'module'});
 
-        const offscreen = this.canvas.transferControlToOffscreen();
+          this.rnW.onmessage = (e) => {
+        const { type, message, data } = e.data;
+        
+        console.log('Main: Worker message received:', type, e.data);
+        
+        switch(type) {
+            case 'ready':
+                console.log('Main: Worker ready');
+                if (this._readyResolver) {
+                    this._readyResolver({ status: 'success', message: 'Worker initialized', data: this.rnW });
+                    this._readyResolver = null;
+                }
+                break;
+                
+            case 'scene_loaded':
+                console.log('Main: Scene loaded in worker');
+                break;
+                
+            case 'error':
+                console.error('Main: Worker error:', message);
+                if (this._readyResolver) {
+                    this._readyResolver = null;
+                    this._readyRejecter(new Error(message));
+                    this._readyRejecter = null;
+                }
+                break;
+                
+            case 'success':
+            case 'result':
+                break;
+                
+            default:
+                console.log('Main: Unhandled worker message type:', type);
+        }
+    };
+
+    this.rnW.onerror = (err) => {
+        console.error('Main: Worker error event:', err);
+        if (this._readyRejecter) {
+            this._readyRejecter(new Error(err.message));
+            this._readyRejecter = null;
+        }
+    };
+
+    const offscreen = this.canvas.transferControlToOffscreen();
+
+    return new Promise((resolve, reject) => {
+        this._readyResolver = resolve;
+        this._readyRejecter = reject;
 
         this.rnW.postMessage({
             type: 'init_rd',
@@ -43,29 +91,13 @@ class WorkerManager {
                 params: {
                     width: params.width || this.canvas.clientWidth || 800,
                     height: params.height || this.canvas.clientHeight || 600,
-                    pixelRatio: params.pixelRatio || 1
+                    pixelRatio: params.pixelRatio || window.devicePixelRatio || 1,
+                    antialias: params.antialias ?? true,
+                    alpha: params.alpha ?? false
                 }
             }
         }, [offscreen]);
-
-      return new Promise((res,rej)=>{
-          this.rnW.onmessage=(e)=>{
-                    const { type } = e.data;
-        
-        if (type === 'error') {
-            console.error('Worker error:', e.data.message);
-            rej(new Error(e.data.message));
-        }else if(type == 'ready'){
-             this.isReady = true;
-            
-        res({
-            'status':'success',
-            'message':'rendering worker started',
-            'data':this.rnW
-        })
-        }
-        }
-      })
+    });
 
     }
 

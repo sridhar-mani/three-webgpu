@@ -10,6 +10,10 @@ export default defineConfig({
       allow:[
         path.resolve(__dirname),  path.resolve(__dirname, '..'),path.resolve(__dirname, '../dist')
       ]
+    },
+    headers:{
+       'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
     }
   }
 })

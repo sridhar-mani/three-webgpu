@@ -12,6 +12,9 @@ class WorkerManager {
         this.canvas = canvas;
         this.rnW = null;
           this.isReady = false;
+
+              this._cameraBuffer = new SharedArrayBuffer(7 * Float32Array.BYTES_PER_ELEMENT);
+    this._cameraArray = new Float32Array(this._cameraBuffer);
         
 
         return new Proxy(this, {
@@ -89,6 +92,7 @@ class WorkerManager {
             type: 'init_rd',
             data: {
                 canvas: offscreen,
+                cameraBuffer: this._cameraBuffer,
                 params: {
                     width: params.width || this.canvas.clientWidth || 800,
                     height: params.height || this.canvas.clientHeight || 600,
@@ -125,13 +129,15 @@ class WorkerManager {
     updateCamera(camera){
         if(!this.isReady) return;
 
-        this.rnW.postMessage({
-            type:'update_camera',
-            data:{
-                position: camera.position.toArray(),
-                quaternion: camera.quaternion.toArray()
-            }
-        })
+        this._cameraArray[0] = camera.position.x;
+        this._cameraArray[1] = camera.position.y;
+        this._cameraArray[2] = camera.position.z;
+        this._cameraArray[3] = camera.quaternion.x;
+        this._cameraArray[4] = camera.quaternion.y;
+        this._cameraArray[5] = camera.quaternion.z;
+        this._cameraArray[6] = camera.quaternion.w;
+
+        
     }
 
     updateTransform(name,pos,rot,scale){
@@ -144,6 +150,59 @@ class WorkerManager {
                 pos: pos? pos:null,
                 rot: rot?rot:null,
                 scale: scale? scale:null
+            }
+        })
+    }
+
+    async addObj(object, options={}){
+        const objDat = {
+                type: object.type,
+    geometry: object.geometry.toJSON(),
+    material: object.material.toJSON(),
+    matrix: object.matrix.toArray(),
+    name: options.name || object.name || generateUUID()
+        }
+
+        return new Promise((res,rej)=>{
+            const id = generateUUID();
+
+            this.rnW.postMessage({
+                type:"add_object",
+                id,
+                data:objDat
+            })
+            const handler = (e)=>{
+                if(e.data.type === 'object_added' && e.data.id===id){
+                    this.rnW.removeEventListener('message',handler);
+                    res({name:objDat.name,id})
+                }
+            };
+            this.rnW.addEventListener('message',handler);
+
+            setTimeout(() => {
+                this.rnW.removeEventListener('message',handler);
+                rej(new Error('Object Timeout'))
+            }, 5000);
+        })
+    }
+
+    removeObject(name){
+        if(!this.isReady) return 
+        this.rnW.postMessage({
+            type:'post_message',
+            data:{name}
+        })
+    }
+
+    updateMaterial(objectName, materialProps){
+        if(!this.isReady) return
+
+
+        this.rnW.postMessage({
+            type:'update_material',
+            data:{
+                name: objectName,
+                props: materialProps
             }
         })
     }

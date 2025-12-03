@@ -7,7 +7,8 @@ const threeObjs = {
     objLoader: new THREE.ObjectLoader(),
     scene: null,
     camera: null,
-    isRendering: false
+    isRendering: false,
+    cameraSharedArr: null
 }
 
 
@@ -43,15 +44,92 @@ self.onmessage  =async(e)=>{
             case 'stop_loop':
                 threeObjs.isRendering = false
                 break;
+            case 'update_material':
+  updateMaterial(data);
+  break;
+            case 'add_object':
+                addObj(data,e.data.id)
+                break;
+            case 'remove_object':
+                removeObj(data)
+                break;
             default:
                 throw new Error(`Unknown msg type:${type}`);
         }
     }catch(err){
         self.postMessage({type:'error',message: err.message});
     }
+
+
 }
 
-async function init_rnd({canvas,params}) {
+function updateMaterial(data) {
+  if (!threeObjs.scene) return;
+    const obj = threeObjs.scene.getObjectByName(data.name);
+  if (!obj || !obj.material) return;
+
+  Object.entries(data.props).forEach(([key,value])=>{
+    if(key=='color'){
+        obj.material.color.setHex(value)
+    }else if(key in obj.material){
+        obj.material[key] = value
+    }
+  })
+  obj.material.needsUpdate = true;
+}
+
+function addObj(data,id){
+    try{
+        let obj;
+
+        const geometry = threeObjs.objLoader.parseGeometries([data.geometry])[data.geometry.uuid];
+                const material = threeObjs.objLoader.parseMaterials([data.material])[data.material.uuid];
+
+                if(data.type =='Mesh'){
+                    obj = new THREE.Mesh(geometry, material);
+                }else if(data.type=='InstancedMesh'){
+                          obj = new THREE.InstancedMesh(geometry, material, data.count);
+                          if(data.instanceMatrices){
+                            obj.instanceMatrix.array.set(data.instanceMatrices);
+                            obj.instanceMatrix.needsUpdate = true;
+                          }
+
+
+
+                }
+
+                obj.name = data.name;
+                obj.matrix.fromArray(data.matrix);
+                obj.matrix.decompose(obj.position, obj.quaternion, obj.scale)
+                threeObjs.scene.add(obj);
+          self.postMessage({ 
+      type: 'object_added', 
+      id,
+      name: data.name 
+    });
+    }catch(er){
+        self.postMessage({
+            type:'error',
+            id,
+            message:`addobject failed: ${er.message}`
+        })
+    }
+}
+
+function removeObj(data){
+    if(!threeObjs.scene) return
+
+    const obj = threeObjs.scene.getObjectByName(data.name);
+
+    if(obj){
+        obj.geometry?.dispose();
+        obj.material?.dispose();
+        threeObjs.scene.remove(obj);    
+    }
+
+}
+
+async function init_rnd({canvas,cameraBuffer,params}) {
     try{
             if (!canvas) {
             throw new Error('Canvas is undefined - transfer failed');
@@ -59,6 +137,10 @@ async function init_rnd({canvas,params}) {
 
         if (!(canvas instanceof OffscreenCanvas)) {
             throw new Error(`Expected OffscreenCanvas, got ${canvas.constructor.name}`);
+        }
+
+        if(cameraBuffer){
+            threeObjs.cameraSharedArr = new Float32Array(cameraBuffer);
         }
 
 
@@ -203,13 +285,32 @@ function startInternalLoop(){
 
 
     if(threeObjs.renderer && threeObjs.camera && threeObjs.scene){
+
+        if(threeObjs.cameraSharedArr && threeObjs.camera){
+            threeObjs.camera.position.set(
+                   threeObjs.cameraSharedArr[0],
+                threeObjs.cameraSharedArr[1],
+                threeObjs.cameraSharedArr[2]
+            )
+            threeObjs.camera.quaternion.set(
+                   threeObjs.cameraSharedArr[3],
+                threeObjs.cameraSharedArr[4],
+                threeObjs.cameraSharedArr[5],
+                threeObjs.cameraSharedArr[6]
+            );
+            threeObjs.camera.updateMatrixWorld();
+            
+        }
         if(frameCount < 5) {
             console.log('Worker: rendering frame', frameCount, {
                 sceneChildren: threeObjs.scene.children.length,
                 camPos: threeObjs.camera.position.toArray()
             });
         }
-        threeObjs.renderer.render(threeObjs.scene,threeObjs.camera)
+            if (threeObjs.renderer && threeObjs.camera && threeObjs.scene) {
+            threeObjs.renderer.render(threeObjs.scene, threeObjs.camera);
+        }
+
         frameCount++;
 
     } else {

@@ -30,7 +30,8 @@ function App() {
     const result = await threejsObs.workerManager._intializeRendererWorker({
             width: canvasRef.current.clientWidth,
         height: canvasRef.current.clientHeight,
-        pixelRatio: Math.min(window.devicePixelRatio || 1, 2)
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+        background: 0xffffff
     })
 
     console.log(result)
@@ -49,95 +50,105 @@ function App() {
     threejsObs.sc.add(new THREE.AmbientLight(0xffffff, 1));
 
     const dLight = new THREE.DirectionalLight(0xffffff,1);
-    dLight.position.set(10,10,10)
+    dLight.position.set(50,50,50)
     threejsObs.sc.add(dLight)
   
 
-    //    const material = new THREE.MeshPhongNodeMaterial( {
-    //     color: 0x00ff, 
-    //     flatShading: false,
-    //     transparent: true,
-    //     opacity: 1,
-    //     shininess:300,
-    //     specular: 0xffffff,
-    //     metalness:0.9,
-    //     roughness:0.1,
-    //     reflectivity: 1.0,
-    //     clearcoat: 1.0,
-    //     clearcoatRoughness: 0.1,
-    // } );
+       const material = new THREE.MeshStandardMaterial( {
+        color: 0x00ff, 
+        flatShading: false,
+        transparent: true,
+        opacity: 1,
+        shininess:300,
+        specular: 0xffffff,
+        metalness:0.9,
+        roughness:0.1,
+        reflectivity: 1.0,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.1,
+    } );
 
-    // const wMat = new THREE.MeshBasicMaterial(
-    //   {
-    //     color: 0xffffff,
-    //     wireframe:true,
-    //     transparent: true,
-    //     opacity: 0.8
-    //   }
-    // )
-
-
+    const wMat = new THREE.MeshStandardMaterial(
+      {
+        color: 0xffffff,
+        wireframe:true,
+        transparent: true,
+        opacity: 0.8
+      }
+    )
 
 
-    // const loader = new STLLoader();
-    // loader.loadAsync('/Menger_sponge_sample.stl').then((geo)=>{
+
+
+    const loader = new STLLoader();
+    const geo = await loader.loadAsync('/Menger_sponge_sample.stl').then((geo)=>{
    
-    //   geo.center()
-    //     geo.computeBoundingBox();
-    //     const bbox = geo.boundingBox;
+      geo.center()
+        geo.computeBoundingBox();
+        const bbox = geo.boundingBox;
 
 
-    //     const size = new THREE.Vector3();
-    //     bbox.getSize(size);
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
 
-    //     const targetSize = 3;
-    //     const maxDim = Math.max(size.x, size.y, size.z);
-    //     const scaleFactor = targetSize/maxDim;
+        const targetSize = 3;
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const scaleFactor = targetSize/maxDim;
 
-    //     const gridSize = Math.ceil(Math.cbrt(200));
-    //     const spacing = 5;
-    //     let count = 0;
+        const gridSize = Math.ceil(Math.cbrt(200));
+        const spacing = 5;
+        let count = 0;
         
-    //         for(let x = 0; x < gridSize && count < 200; x++){
-    //           for(let y = 0; y < gridSize && count < 200; y++){
-    //             for(let z = 0; z < gridSize && count < 200; z++){
-    //   const mesh = new THREE.Mesh( geo, material );
-    //   mesh.scale.setScalar(scaleFactor);
-    //   mesh.position.set(
-    //     (x-gridSize/2)*spacing,(y-gridSize/2)*spacing,(z-gridSize/2)*spacing
-    //   )
-    //     threejsObs.sc.add( mesh );
+            for(let x = 0; x < gridSize && count < 200; x++){
+              for(let y = 0; y < gridSize && count < 200; y++){
+                for(let z = 0; z < gridSize && count < 200; z++){
+      const mesh = new THREE.Mesh( geo, material );
+      mesh.scale.setScalar(scaleFactor);
+      mesh.position.set(
+        (x-gridSize/2)*spacing,(y-gridSize/2)*spacing,(z-gridSize/2)*spacing
+      )
+        threejsObs.sc.add( mesh );
 
         
-    //     const wireframeMesh = new THREE.Mesh(geo, wMat);
-    //     wireframeMesh.scale.setScalar(scaleFactor);
-    //     wireframeMesh.position.copy(mesh.position);
-    //     threejsObs.sc.add(wireframeMesh);
+        const wireframeMesh = new THREE.Mesh(geo, wMat);
+        wireframeMesh.scale.setScalar(scaleFactor);
+        wireframeMesh.position.copy(mesh.position);
+        threejsObs.sc.add(wireframeMesh);
 
-    //     count++
-    //             }
-    //           }
-    //         }
+        count++
+                }
+              }
+            }
 
-    //         const gridExtend = (gridSize * spacing)/2
-    //         threejsObs.cam.position.set(gridExtend * 1.5, gridExtend * 1.2, gridExtend * 1.5);
-    //         threejsObs.cam.lookAt(0,0,0);
+            const gridExtend = (gridSize * spacing)/2
+            threejsObs.cam.position.set(gridExtend * 1.5, gridExtend * 1.2, gridExtend * 1.5);
+            threejsObs.cam.lookAt(0,0,0);
 
 
-    // }).catch((err)=>{
-    //   console.error('Failed to load stl:', err);
+    }).catch((err)=>{
+      console.error('Failed to load stl:', err);
       
-    // })
-     const geometry = new THREE.BoxGeometry(5, 5, 5);
-        const material = new THREE.MeshStandardMaterial({ color: 0x00ff88 });
-        const cube = new THREE.Mesh(geometry, material);
-        cube.name = 'cube';
-        threejsObs.sc.add(cube);
+    })
+//      const geometry = new THREE.BoxGeometry(5, 5, 5);
+//         const material = new THREE.MeshStandardMaterial
+// ({ 
+//           color: 0x00ff,
+//           metalness: 0.1, 
+//           roughness: 0.1,
+//           transparent: false,
+//           opacity: 1,
+//           emissive: 0x002211,
+//              emissiveIntensity: 0.2
+//         });
+//         const cube = new THREE.Mesh(geometry, material);
+//         cube.name = 'cube';
+//         threejsObs.sc.add(cube);
 
         
         await threejsObs.workerManager.loadScene({
           sc: threejsObs.sc,
-          cam: threejsObs.cam
+          cam: threejsObs.cam,
+          bgColor: 0xffffff
         })
 
     function animate(){

@@ -82,7 +82,13 @@ async function init_rnd({canvas,params}) {
 
     threeObjs.renderer.setSize(width, height, false );
     threeObjs.renderer.setPixelRatio(pixelRatio );
+    threeObjs.renderer.setClearColor(params.background, 1); 
     threeObjs.device = threeObjs.renderer.backend?.device ?? null;
+
+
+    if(threeObjs.scene){
+        threeObjs.scene.background = new THREE.Color(params.background)
+    }
 
     console.log('Worker: posting ready message');
         self.postMessage({ type: 'ready', message: 'Renderer initialized' });
@@ -134,6 +140,8 @@ function loadScene(data){
         console.log('Worker: loadScene received', data);
         threeObjs.scene = threeObjs.objLoader.parse(data.scene)
         threeObjs.camera = threeObjs.objLoader.parse(data.cam)
+        threeObjs.scene.background = new THREE.Color(data.bgColor);
+
 
         threeObjs.camera.updateProjectionMatrix();
 threeObjs.camera.updateMatrixWorld();
@@ -144,6 +152,10 @@ threeObjs.camera.updateMatrixWorld();
             children: threeObjs.scene.children.map(c => ({ name: c.name, type: c.type })),
             cameraPos: threeObjs.camera.position.toArray()
         });
+        //    if (!threeObjs.scene.background) {
+        //     threeObjs.scene.background = new THREE.Color(0xffffff);
+        //     console.log('Worker: Added background color to scene');
+        // }
 
         startInternalLoop();
 

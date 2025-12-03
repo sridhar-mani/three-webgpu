@@ -102,7 +102,7 @@ class WorkerManager {
 
     }
 
-    async loadScene({sc,cam}){
+    async loadScene({sc,cam,bgColor}){
         const sceneJSON = sc.toJSON();
         const camJSON = cam.toJSON();
         console.log('MainThread: sending scene to worker', {
@@ -115,7 +115,8 @@ class WorkerManager {
                 type:'load_scene',
                 data:{
                     scene: sceneJSON,
-                    cam: camJSON
+                    cam: camJSON,
+                    bgColor: bgColor || null
                 }
             }
         )

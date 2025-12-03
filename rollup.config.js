@@ -24,7 +24,7 @@ const config =[
                 input: 'src/WorkerHyb.js',
         external: ['three', 'three/webgpu','@sridhar-mani/dsa-js' ],   
         output:{
-            file: 'dist/worker.js',
+            file: 'dist/workerhyb.js',
             format: 'es',
             sourcemap:true
         },

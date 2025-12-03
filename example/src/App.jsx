@@ -2,20 +2,25 @@ import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three/webgpu'
 import './App.css'
 import { OrbitControls, STLLoader } from 'three/examples/jsm/Addons.js';
+import WorkerManager from 'three-webgpu-worker';
 
 function App() {
   const canvasRef = useRef(null);
  
+
   useEffect(()=>{
     let animatId;
      const threejsObs = {
     renderer: null,
     cam:null,
     sc:null,
+    workerManager:null
   }
 
 
     const ani =async ()=>{
+      threejsObs.workerManager = new WorkerManager({canvas:canvasRef.current});
+      await threejsObs.workerManager._intializeRendererWorker({canvas:canvasRef.current})
           threejsObs.renderer = new THREE.WebGPURenderer();
     canvasRef.current.appendChild(threejsObs.renderer.domElement)
     threejsObs.renderer.setSize(canvasRef.current.clientWidth,canvasRef.current.clientHeight)
@@ -76,13 +81,13 @@ function App() {
         const maxDim = Math.max(size.x, size.y, size.z);
         const scaleFactor = targetSize/maxDim;
 
-        const gridSize = Math.ceil(Math.cbrt(20000));
+        const gridSize = Math.ceil(Math.cbrt(200));
         const spacing = 5;
         let count = 0;
         
-            for(let x = 0; x < gridSize && count < 20000; x++){
-              for(let y = 0; y < gridSize && count < 20000; y++){
-                for(let z = 0; z < gridSize && count < 20000; z++){
+            for(let x = 0; x < gridSize && count < 200; x++){
+              for(let y = 0; y < gridSize && count < 200; y++){
+                for(let z = 0; z < gridSize && count < 200; z++){
       const mesh = new THREE.Mesh( geo, material );
       mesh.scale.setScalar(scaleFactor);
       mesh.position.set(

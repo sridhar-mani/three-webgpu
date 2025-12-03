@@ -54,7 +54,11 @@ self.onmessage  =async(e)=>{
 
 async function init_rnd({canvas,params}) {
     try{
-            threeObjs.renderer =  new THREE.WebGPURenderer({canvas});
+            threeObjs.renderer =  new THREE.WebGPURenderer({
+                canvas,
+                antialias: params.antialias ?? true,
+                alpha: params.alpha ?? false
+            });
 
     await threeObjs.renderer.init();
     console.log('Worker: renderer.init() complete');
@@ -62,6 +66,8 @@ async function init_rnd({canvas,params}) {
             const width = params.width || 800;
         const height = params.height || 600;
         const pixelRatio = params.pixelRatio || 1;
+        
+        await new Promise(resolve=> setTimeout(resolve,0));
 
     threeObjs.renderer.setSize(width, height, false );
     threeObjs.renderer.setPixelRatio(pixelRatio );
@@ -69,6 +75,7 @@ async function init_rnd({canvas,params}) {
     console.log('Worker: posting ready message');
         self.postMessage({ type: 'ready', message: 'Renderer initialized' });
     }catch(err){
+         console.error('Worker init error:', err);
         self.postMessage({ type: 'error', message: `Renderer initialization failed: ${err.message}` });
     }
 

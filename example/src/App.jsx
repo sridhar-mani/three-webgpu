@@ -15,7 +15,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [meshCount, setMeshCount] = useState(0);
 
-  // UI Test States
   const [normalText, setNormalText] = useState('');
   const [workerText, setWorkerText] = useState('');
   const [normalSlider, setNormalSlider] = useState(50);
@@ -23,11 +22,9 @@ function App() {
   const [normalClicks, setNormalClicks] = useState(0);
   const [workerClicks, setWorkerClicks] = useState(0);
 
-  // Lag detection
   const [normalIsLagging, setNormalIsLagging] = useState(false);
   const [workerIsLagging, setWorkerIsLagging] = useState(false);
 
-  // Input lag measurement
   const [normalInputLag, setNormalInputLag] = useState(0);
   const [workerInputLag, setWorkerInputLag] = useState(0);
   const normalKeyDownTime = useRef(0);
@@ -35,7 +32,6 @@ function App() {
   const normalLagSamples = useRef([]);
   const workerLagSamples = useRef([]);
 
-  // More instances for visible lag
   const GRID_SIZE = 18;
 
   useEffect(() => {
@@ -336,15 +332,14 @@ function App() {
       </header>
 
       <div className="demo-container">
-        {/* LEFT SIDE - MAIN THREAD */}
         <div className="demo-side">
-          <div className="canvas-area">
-            <canvas ref={normalCanvasRef} />
-          </div>
-
           <div className="side-header">
             <div className="badge badge-red">Main Thread</div>
             <div className={`status-light ${normalIsLagging ? 'lagging' : ''}`}></div>
+          </div>
+
+          <div className="canvas-area">
+            <canvas ref={normalCanvasRef} />
           </div>
 
           <div className="test-panel">
@@ -418,15 +413,14 @@ function App() {
           </div>
         </div>
 
-        {/* RIGHT SIDE - WEB WORKER */}
         <div className="demo-side">
-          <div className="canvas-area">
-            <canvas ref={workerCanvasRef} />
-          </div>
-
           <div className="side-header">
             <div className="badge badge-green">Worker Thread</div>
             <div className={`status-light status-light-green ${workerIsLagging ? 'lagging' : ''}`}></div>
+          </div>
+
+          <div className="canvas-area">
+            <canvas ref={workerCanvasRef} />
           </div>
 
           <div className="test-panel">

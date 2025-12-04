@@ -13,7 +13,6 @@ body {
   overflow: hidden;
 }
 
-/* Loading */
 .loading-screen {
   position: fixed;
   inset: 0;
@@ -44,14 +43,12 @@ body {
   color: #666;
 }
 
-/* App */
 .app {
   width: 100vw;
   height: 100vh;
   position: relative;
 }
 
-/* Header */
 .header {
   position: absolute;
   top: 24px;
@@ -74,7 +71,6 @@ body {
   color: rgba(255,255,255,0.6);
 }
 
-/* Demo Container - Split 50/50 */
 .demo-container {
   display: flex;
   width: 100%;
@@ -91,7 +87,6 @@ body {
   border-right: 1px solid rgba(255,255,255,0.1);
 }
 
-/* Canvas fills the entire side */
 .canvas-area {
   position: absolute;
   inset: 0;
@@ -103,7 +98,6 @@ body {
   display: block;
 }
 
-/* Side Header - now positioned at top of canvas */
 .side-header {
   position: absolute;
   top: 16px;
@@ -111,7 +105,6 @@ body {
   z-index: 10;
   display: flex;
   align-items: center;
-  justify-content: end;
   gap: 10px;
 }
 
@@ -156,7 +149,6 @@ body {
   50% { opacity: 0.2; }
 }
 
-/* Overlay Form Panel */
 .test-panel {
   position: absolute;
   bottom: 24px;
@@ -174,7 +166,6 @@ body {
   display: none;
 }
 
-/* Metrics inside overlay */
 .metrics-grid {
   display: flex;
   gap: 32px;
@@ -215,7 +206,6 @@ body {
   color: #888;
 }
 
-/* Form Elements */
 .test-row {
   display: flex;
   gap: 12px;
@@ -321,13 +311,11 @@ body {
   background: #333;
 }
 
-/* Hide unused elements */
 .verdict,
 .explanation {
   display: none;
 }
 
-/* Responsive */
 @media (max-width: 900px) {
   .demo-container {
     flex-direction: column;

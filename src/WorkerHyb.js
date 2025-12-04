@@ -11,20 +11,16 @@ const threeObjs = {
     cameraSharedArr: null
 }
 
+self.onmessage = async(e)=>{
+    const { type, data } = e.data;
 
-
-
-self.onmessage  =async(e)=>{
-    const {type, data} = e.data;
-
-    try{
-
+    try {
         switch(type){
             case 'init_rd':
                 await init_rnd(data);
                 break;
             case 'load_scene':
-                loadScene(data)
+                loadScene(data);
                 break;
             case 'update_camera':
                 updateCamera(data);
@@ -33,165 +29,136 @@ self.onmessage  =async(e)=>{
                 updateTransform(data);
                 break;
             case 'render':
-                renderOnce(data)
+                renderOnce(data);
                 break;
             case 'compute':
                 await runComp(data);
                 break;
             case 'threejs_func':
-                call_func(data)
+                call_func(data);
                 break;
             case 'stop_loop':
-                threeObjs.isRendering = false
+                threeObjs.isRendering = false;
                 break;
             case 'update_material':
-  updateMaterial(data);
-  break;
+                updateMaterial(data);
+                break;
             case 'add_object':
-                addObj(data,e.data.id)
+                addObj(data, e.data.id);
                 break;
             case 'remove_object':
-                removeObj(data)
+                removeObj(data);
                 break;
             default:
-                throw new Error(`Unknown msg type:${type}`);
+                throw new Error(`Unknown msg type: ${type}`);
         }
-    }catch(err){
-        self.postMessage({type:'error',message: err.message});
+    } catch(err) {
+        self.postMessage({ type: 'error', message: err.message });
     }
-
-
 }
 
-function updateMaterial(data) {
-  if (!threeObjs.scene) return;
+function updateMaterial(data){
+    if(!threeObjs.scene) return;
     const obj = threeObjs.scene.getObjectByName(data.name);
-  if (!obj || !obj.material) return;
+    if(!obj || !obj.material) return;
 
-  Object.entries(data.props).forEach(([key,value])=>{
-    if(key=='color'){
-        obj.material.color.setHex(value)
-    }else if(key in obj.material){
-        obj.material[key] = value
-    }
-  })
-  obj.material.needsUpdate = true;
+    Object.entries(data.props).forEach(([key, value])=>{
+        if(key == 'color'){
+            obj.material.color.setHex(value);
+        } else if(key in obj.material){
+            obj.material[key] = value;
+        }
+    })
+    obj.material.needsUpdate = true;
 }
 
-function addObj(data,id){
-    try{
+function addObj(data, id){
+    try {
         let obj;
-
         const geometry = threeObjs.objLoader.parseGeometries([data.geometry])[data.geometry.uuid];
-                const material = threeObjs.objLoader.parseMaterials([data.material])[data.material.uuid];
+        const material = threeObjs.objLoader.parseMaterials([data.material])[data.material.uuid];
 
-                if(data.type =='Mesh'){
-                    obj = new THREE.Mesh(geometry, material);
-                }else if(data.type=='InstancedMesh'){
-                          obj = new THREE.InstancedMesh(geometry, material, data.count);
-                          if(data.instanceMatrices){
-                            obj.instanceMatrix.array.set(data.instanceMatrices);
-                            obj.instanceMatrix.needsUpdate = true;
-                          }
+        if(data.type == 'Mesh'){
+            obj = new THREE.Mesh(geometry, material);
+        } else if(data.type == 'InstancedMesh'){
+            obj = new THREE.InstancedMesh(geometry, material, data.count);
+            if(data.instanceMatrices){
+                obj.instanceMatrix.array.set(data.instanceMatrices);
+                obj.instanceMatrix.needsUpdate = true;
+            }
+        }
 
-
-
-                }
-
-                obj.name = data.name;
-                obj.matrix.fromArray(data.matrix);
-                obj.matrix.decompose(obj.position, obj.quaternion, obj.scale)
-                threeObjs.scene.add(obj);
-          self.postMessage({ 
-      type: 'object_added', 
-      id,
-      name: data.name 
-    });
-    }catch(er){
-        self.postMessage({
-            type:'error',
-            id,
-            message:`addobject failed: ${er.message}`
-        })
+        obj.name = data.name;
+        obj.matrix.fromArray(data.matrix);
+        obj.matrix.decompose(obj.position, obj.quaternion, obj.scale);
+        threeObjs.scene.add(obj);
+        
+        self.postMessage({ type: 'object_added', id, name: data.name });
+    } catch(er){
+        self.postMessage({ type: 'error', id, message: `addObject failed: ${er.message}` });
     }
 }
 
 function removeObj(data){
-    if(!threeObjs.scene) return
-
+    if(!threeObjs.scene) return;
     const obj = threeObjs.scene.getObjectByName(data.name);
-
     if(obj){
         obj.geometry?.dispose();
         obj.material?.dispose();
-        threeObjs.scene.remove(obj);    
+        threeObjs.scene.remove(obj);
     }
-
 }
 
-async function init_rnd({canvas,cameraBuffer,params}) {
-    try{
-            if (!canvas) {
+async function init_rnd({ canvas, cameraBuffer, params }){
+    try {
+        if(!canvas){
             throw new Error('Canvas is undefined - transfer failed');
         }
-
-        if (!(canvas instanceof OffscreenCanvas)) {
+        if(!(canvas instanceof OffscreenCanvas)){
             throw new Error(`Expected OffscreenCanvas, got ${canvas.constructor.name}`);
         }
-
         if(cameraBuffer){
             threeObjs.cameraSharedArr = new Float32Array(cameraBuffer);
         }
 
-
-           
-    console.log('Worker: renderer.init() complete');
-
-            const width = params.width || 800;
+        const width = params.width || 800;
         const height = params.height || 600;
         const pixelRatio = params.pixelRatio || 1;
 
-                canvas.width = width * pixelRatio;
+        canvas.width = width * pixelRatio;
         canvas.height = height * pixelRatio;
 
-         threeObjs.renderer =  new THREE.WebGPURenderer({
-                canvas,
-                antialias: params.antialias ?? true,
-                alpha: params.alpha ?? false
-            });
+        threeObjs.renderer = new THREE.WebGPURenderer({
+            canvas,
+            antialias: params.antialias ?? true,
+            alpha: params.alpha ?? false
+        });
 
-    await threeObjs.renderer.init();
+        await threeObjs.renderer.init();
 
-    threeObjs.renderer.setSize(width, height, false );
-    threeObjs.renderer.setPixelRatio(pixelRatio );
-    threeObjs.renderer.setClearColor(params.background, 1); 
-    threeObjs.device = threeObjs.renderer.backend?.device ?? null;
+        threeObjs.renderer.setSize(width, height, false);
+        threeObjs.renderer.setPixelRatio(pixelRatio);
+        threeObjs.renderer.setClearColor(params.background, 1);
+        threeObjs.device = threeObjs.renderer.backend?.device ?? null;
 
+        if(threeObjs.scene){
+            threeObjs.scene.background = new THREE.Color(params.background);
+        }
 
-    if(threeObjs.scene){
-        threeObjs.scene.background = new THREE.Color(params.background)
-    }
-
-    console.log('Worker: posting ready message');
         self.postMessage({ type: 'ready', message: 'Renderer initialized' });
-    }catch(err){
-         console.error('Worker init error:', err);
+    } catch(err){
         self.postMessage({ type: 'error', message: `Renderer initialization failed: ${err.message}` });
     }
-
 }
 
-function call_func({name, params, id}) {
-
-    try{
+function call_func({ name, params, id }){
+    try {
         if(!threeObjs.renderer){
             throw new Error('Renderer not initialized');
         }
-
         if(!ALLOWED_METHODS.has(name)){
-            throw new Error('Function not allowed')
+            throw new Error('Function not allowed');
         }
-
         if(typeof threeObjs.renderer[name] !== 'function'){
             throw new Error(`Method '${name}' does not exist on renderer`);
         }
@@ -199,149 +166,94 @@ function call_func({name, params, id}) {
         const res = threeObjs.renderer[name](...params);
 
         if(id){
-            self.postMessage({
-                type: 'success',
-                id,
-                result: res !== undefined? res: null
-            })
+            self.postMessage({ type: 'success', id, result: res !== undefined ? res : null });
         }
-
-    }catch(err){
-        self.postMessage({
-            type:'error',
-            id,
-            message: err.message,
-            method:name
-        })
+    } catch(err){
+        self.postMessage({ type: 'error', id, message: err.message, method: name });
     }
-    
 }
 
 function loadScene(data){
     try {
-        console.log('Worker: loadScene received', data);
-        threeObjs.scene = threeObjs.objLoader.parse(data.scene)
-        threeObjs.camera = threeObjs.objLoader.parse(data.cam)
+        threeObjs.scene = threeObjs.objLoader.parse(data.scene);
+        threeObjs.camera = threeObjs.objLoader.parse(data.cam);
         threeObjs.scene.background = new THREE.Color(data.bgColor);
-    threeObjs.scene.traverse((obj) => {
-        if (obj.isInstancedMesh && obj.userData.instanceMatrices) {
-            obj.instanceMatrix.array.set(obj.userData.instanceMatrices);
-            obj.instanceMatrix.needsUpdate = true;
-            console.log(`Worker: Restored ${obj.count} instances for`, obj.name || 'mesh');
-        }
-    });
-    
+
+        threeObjs.scene.traverse((obj) => {
+            if(obj.isInstancedMesh && obj.userData.instanceMatrices){
+                obj.instanceMatrix.array.set(obj.userData.instanceMatrices);
+                obj.instanceMatrix.needsUpdate = true;
+            }
+        });
 
         threeObjs.camera.updateProjectionMatrix();
-threeObjs.camera.updateMatrixWorld();
-
-
-        console.log('Worker: scene parsed', {
-            childCount: threeObjs.scene.children.length,
-            children: threeObjs.scene.children.map(c => ({ name: c.name, type: c.type })),
-            cameraPos: threeObjs.camera.position.toArray()
-        });
-        //    if (!threeObjs.scene.background) {
-        //     threeObjs.scene.background = new THREE.Color(0xffffff);
-        //     console.log('Worker: Added background color to scene');
-        // }
+        threeObjs.camera.updateMatrixWorld();
 
         startInternalLoop();
-
-        self.postMessage({type:'scene_loaded'})
-    } catch(err) {
-        console.error('Worker: loadScene error', err);
-        self.postMessage({type:'error', message: `loadScene failed: ${err.message}`});
+        self.postMessage({ type: 'scene_loaded' });
+    } catch(err){
+        self.postMessage({ type: 'error', message: `loadScene failed: ${err.message}` });
     }
 }
 
 function updateCamera(data){
     if(!threeObjs.camera) return;
-
-
-    if(data.position) threeObjs.camera.position.fromArray(data.position)
-    if(data.quaternion) threeObjs.camera.quaternion.fromArray(data.quaternion)
-
+    if(data.position) threeObjs.camera.position.fromArray(data.position);
+    if(data.quaternion) threeObjs.camera.quaternion.fromArray(data.quaternion);
     threeObjs.camera.updateMatrixWorld();
 }
 
 function updateTransform(data){
-    if(!threeObjs.scene) return
-    
+    if(!threeObjs.scene) return;
     const obj = threeObjs.scene.getObjectByName(data.name);
     if(!obj) return;
     if(data.pos) obj.position.fromArray(data.pos);
-            if(data.rot) obj.rotation.fromArray(data.rot);
-                if(data.scale) obj.scale.fromArray(data.scale);
+    if(data.rot) obj.rotation.fromArray(data.rot);
+    if(data.scale) obj.scale.fromArray(data.scale);
 }
 
 function startInternalLoop(){
-    if(threeObjs.isRendering) return
+    if(threeObjs.isRendering) return;
     threeObjs.isRendering = true;
-    let frameCount = 0;
 
     function loop(){
-        if(!threeObjs.isRendering) return
+        if(!threeObjs.isRendering) return;
 
-
-    if(threeObjs.renderer && threeObjs.camera && threeObjs.scene){
-
-        if(threeObjs.cameraSharedArr && threeObjs.camera){
-            threeObjs.camera.position.set(
-                   threeObjs.cameraSharedArr[0],
-                threeObjs.cameraSharedArr[1],
-                threeObjs.cameraSharedArr[2]
-            )
-            threeObjs.camera.quaternion.set(
-                   threeObjs.cameraSharedArr[3],
-                threeObjs.cameraSharedArr[4],
-                threeObjs.cameraSharedArr[5],
-                threeObjs.cameraSharedArr[6]
-            );
-            threeObjs.camera.updateMatrixWorld();
-            
-        }
-        if(frameCount < 5) {
-            console.log('Worker: rendering frame', frameCount, {
-                sceneChildren: threeObjs.scene.children.length,
-                camPos: threeObjs.camera.position.toArray()
-            });
-        }
-            if (threeObjs.renderer && threeObjs.camera && threeObjs.scene) {
+        if(threeObjs.renderer && threeObjs.camera && threeObjs.scene){
+            if(threeObjs.cameraSharedArr && threeObjs.camera){
+                threeObjs.camera.position.set(
+                    threeObjs.cameraSharedArr[0],
+                    threeObjs.cameraSharedArr[1],
+                    threeObjs.cameraSharedArr[2]
+                );
+                threeObjs.camera.quaternion.set(
+                    threeObjs.cameraSharedArr[3],
+                    threeObjs.cameraSharedArr[4],
+                    threeObjs.cameraSharedArr[5],
+                    threeObjs.cameraSharedArr[6]
+                );
+                threeObjs.camera.updateMatrixWorld();
+            }
             threeObjs.renderer.render(threeObjs.scene, threeObjs.camera);
         }
 
-        frameCount++;
-
-    } else {
-            console.warn('Worker: Missing renderer/camera/scene', {
-                hasRenderer: !!threeObjs.renderer,
-                hasCamera: !!threeObjs.camera,
-                hasScene: !!threeObjs.scene
-            });
-        }
-
-        requestAnimationFrame(loop)
-
+        requestAnimationFrame(loop);
     }
-    loop()
+    loop();
 }
 
-function renderOnce({scene,cam}){
+function renderOnce({ scene, cam }){
     const rmtSc = threeObjs.objLoader.parse(scene);
     const rmtCam = threeObjs.objLoader.parse(cam);
-
-
-    threeObjs.renderer.render(rmtSc,rmtCam);
+    threeObjs.renderer.render(rmtSc, rmtCam);
 }
 
-async function runComp({id, func,data}) {
-    try{
+async function runComp({ id, func, data }){
+    try {
         const usrFunc = new Function(`return ${func}`)();
-
-        const res = await Promise.resolve(usrFunc(data, threeObjs.device))
-        self.postMessage({type:'result', id, res})
-    }catch(err){
-        self.postMessage({type:'error', id, error: err.message})
+        const res = await Promise.resolve(usrFunc(data, threeObjs.device));
+        self.postMessage({ type: 'result', id, res });
+    } catch(err){
+        self.postMessage({ type: 'error', id, error: err.message });
     }
 }

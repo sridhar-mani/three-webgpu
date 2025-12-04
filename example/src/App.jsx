@@ -14,9 +14,7 @@ function App() {
   const [normalCpu, setNormalCpu] = useState(0);
   const [workerCpu, setWorkerCpu] = useState(0);
   const [loading, setLoading] = useState(true);
-
-  const [testInput, setTestInput] = useState('');
-  const [sliderValue, setSliderValue] = useState(50);
+  const [meshCount, setMeshCount] = useState(0);
 
   useEffect(() => {
     if (initRef.current) return;
@@ -24,9 +22,6 @@ function App() {
 
     let normalAnimId, workerAnimId;
 
-    // ============================================
-    // NORMAL THREE.JS (LEFT)
-    // ============================================
     const setupNormal = async () => {
       if (!normalCanvasRef.current) return;
 
@@ -42,34 +37,40 @@ function App() {
 
       renderer.setSize(width, height, false);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setClearColor(0x0f0f1a, 1);
+      renderer.setClearColor(0xf5f5f5, 1);
 
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(40, width / height, 1, 10000);
-      camera.position.set(30, 25, 30);
+      const camera = new THREE.PerspectiveCamera(50, width / height, 1, 10000);
+      camera.position.set(80, 60, 80);
       camera.lookAt(0, 0, 0);
 
       const controls = new OrbitControls(camera, normalCanvasRef.current);
       controls.enableDamping = true;
       controls.dampingFactor = 0.05;
       controls.enablePan = false;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.5;
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1);
       dirLight.position.set(50, 50, 50);
       scene.add(dirLight);
+      
+      const dirLight2 = new THREE.DirectionalLight(0x4466ff, 0.3);
+      dirLight2.position.set(-50, -20, -50);
+      scene.add(dirLight2);
 
       const material = new THREE.MeshStandardMaterial({
-        color: 0xff4455,
-        metalness: 0.7,
+        color: 0xe74c3c,
+        metalness: 0.4,
         roughness: 0.3,
       });
 
-      const wireframeMat = new THREE.MeshStandardMaterial({
+      const wireframeMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         wireframe: true,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.08,
       });
 
       try {
@@ -86,10 +87,11 @@ function App() {
         const maxDim = Math.max(size.x, size.y, size.z);
         const scaleFactor = targetSize / maxDim;
 
-        const gridSize = 14; // 16×16×16 = 4,096 instances
+        const gridSize = 14;
         const spacing = 5;
         let idx = 0;
         const instanceCount = gridSize * gridSize * gridSize;
+        setMeshCount(instanceCount);
 
         const instancedMesh = new THREE.InstancedMesh(geo, material, instanceCount);
         const instancedWireframe = new THREE.InstancedMesh(geo, wireframeMat, instanceCount);
@@ -107,7 +109,6 @@ function App() {
                 (y - gridSize / 2) * spacing,
                 (z - gridSize / 2) * spacing
               );
-
               matrix.compose(position, rotation, scale);
               instancedMesh.setMatrixAt(idx, matrix);
               instancedWireframe.setMatrixAt(idx, matrix);
@@ -123,12 +124,12 @@ function App() {
         scene.add(instancedWireframe);
 
         const gridExtend = (gridSize * spacing) / 2;
-        camera.position.set(gridExtend * 1.5, gridExtend * 1.2, gridExtend * 1.5);
+        camera.position.set(gridExtend * 2.5, gridExtend * 2, gridExtend * 2.5);
         camera.lookAt(0, 0, 0);
+        controls.target.set(0, 0, 0);
 
         setLoading(false);
 
-        // Performance tracking
         let frameCount = 0;
         let lastTime = performance.now();
         let cpuTimes = [];
@@ -141,17 +142,14 @@ function App() {
           renderer.render(scene, camera);
 
           const frameEnd = performance.now();
-          const cpuTime = frameEnd - frameStart;
-          cpuTimes.push(cpuTime);
+          cpuTimes.push(frameEnd - frameStart);
           if (cpuTimes.length > 30) cpuTimes.shift();
 
           frameCount++;
           if (frameCount % 20 === 0) {
             const avgCpu = cpuTimes.reduce((a, b) => a + b, 0) / cpuTimes.length;
             setNormalCpu(avgCpu.toFixed(1));
-            
-            const fps = Math.round(20000 / (frameEnd - lastTime));
-            setNormalFps(fps);
+            setNormalFps(Math.round(20000 / (frameEnd - lastTime)));
             lastTime = frameEnd;
           }
         }
@@ -162,9 +160,6 @@ function App() {
       }
     };
 
-    // ============================================
-    // WORKER THREE.JS (RIGHT)
-    // ============================================
     const setupWorker = async () => {
       if (!workerCanvasRef.current) return;
 
@@ -176,40 +171,46 @@ function App() {
         width: workerCanvasRef.current.clientWidth,
         height: workerCanvasRef.current.clientHeight,
         pixelRatio: Math.min(window.devicePixelRatio, 2),
-        background: 0x0f0f1a,
+        background: 0xf5f5f5,
       });
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(
-        40,
+        50,
         workerCanvasRef.current.clientWidth / workerCanvasRef.current.clientHeight,
         1,
         10000
       );
-      camera.position.set(30, 25, 30);
+      camera.position.set(80, 60, 80);
       camera.lookAt(0, 0, 0);
 
       const controls = new OrbitControls(camera, workerCanvasRef.current);
       controls.enableDamping = true;
       controls.dampingFactor = 0.05;
       controls.enablePan = false;
+      controls.autoRotate = true;
+      controls.autoRotateSpeed = 0.5;
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1);
       dirLight.position.set(50, 50, 50);
       scene.add(dirLight);
+      
+      const dirLight2 = new THREE.DirectionalLight(0x4466ff, 0.3);
+      dirLight2.position.set(-50, -20, -50);
+      scene.add(dirLight2);
 
       const material = new THREE.MeshStandardMaterial({
-        color: 0x44ff88,
-        metalness: 0.7,
+        color: 0x2ecc71,
+        metalness: 0.4,
         roughness: 0.3,
       });
 
-      const wireframeMat = new THREE.MeshStandardMaterial({
+      const wireframeMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
         wireframe: true,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.08,
       });
 
       try {
@@ -226,7 +227,7 @@ function App() {
         const maxDim = Math.max(size.x, size.y, size.z);
         const scaleFactor = targetSize / maxDim;
 
-        const gridSize = 14; // 16×16×16 = 4,096 instances
+        const gridSize = 14;
         const spacing = 5;
         let idx = 0;
         const instanceCount = gridSize * gridSize * gridSize;
@@ -247,7 +248,6 @@ function App() {
                 (y - gridSize / 2) * spacing,
                 (z - gridSize / 2) * spacing
               );
-
               matrix.compose(position, rotation, scale);
               instancedMesh.setMatrixAt(idx, matrix);
               instancedWireframe.setMatrixAt(idx, matrix);
@@ -266,16 +266,16 @@ function App() {
         instancedWireframe.userData.instanceMatrices = Array.from(instancedWireframe.instanceMatrix.array);
 
         const gridExtend = (gridSize * spacing) / 2;
-        camera.position.set(gridExtend * 1.5, gridExtend * 1.2, gridExtend * 1.5);
+        camera.position.set(gridExtend * 2.5, gridExtend * 2, gridExtend * 2.5);
         camera.lookAt(0, 0, 0);
+        controls.target.set(0, 0, 0);
 
         await workerManager.loadScene({
           sc: scene,
           cam: camera,
-          bgColor: 0x0f0f1a,
+          bgColor: 0xf5f5f5,
         });
 
-        // Performance tracking
         let frameCount = 0;
         let lastTime = performance.now();
         let cpuTimes = [];
@@ -288,17 +288,14 @@ function App() {
           workerManager.updateCamera(camera);
 
           const frameEnd = performance.now();
-          const cpuTime = frameEnd - frameStart;
-          cpuTimes.push(cpuTime);
+          cpuTimes.push(frameEnd - frameStart);
           if (cpuTimes.length > 30) cpuTimes.shift();
 
           frameCount++;
           if (frameCount % 20 === 0) {
             const avgCpu = cpuTimes.reduce((a, b) => a + b, 0) / cpuTimes.length;
             setWorkerCpu(avgCpu.toFixed(1));
-            
-            const fps = Math.round(20000 / (frameEnd - lastTime));
-            setWorkerFps(fps);
+            setWorkerFps(Math.round(20000 / (frameEnd - lastTime)));
             lastTime = frameEnd;
           }
         }
@@ -318,224 +315,65 @@ function App() {
   }, []);
 
   return (
-    <div style={{
-      width: '100vw',
-      height: '100vh',
-      background: '#0a0a0f',
-      display: 'flex',
-      flexDirection: 'column',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      overflow: 'hidden'
-    }}>
-      {/* Simple Header */}
-      <div style={{
-        background: '#15151f',
-        borderBottom: '1px solid #25252f',
-        padding: '12px 20px'
-      }}>
-        <h1 style={{ 
-          margin: 0, 
-          fontSize: '16px', 
-          fontWeight: '600',
-          color: '#e0e0e0' 
-        }}>
-          WebGPU Worker Performance Demo
-        </h1>
-        <p style={{ 
-          margin: '4px 0 0 0', 
-          fontSize: '13px', 
-          color: '#808080'
-        }}>
-          4,096 Menger Sponge instances (16×16×16 grid)
-        </p>
-      </div>
-
+    <div className="app-container">
       {loading && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          fontSize: '14px',
-          zIndex: 1000
-        }}>
-          Loading scene...
+        <div className="loading-overlay">
+          <div className="loader"></div>
+          <span>Loading {meshCount.toLocaleString()} instances...</span>
         </div>
       )}
 
-      {/* Main Canvas Area */}
-      <div style={{ 
-        flex: 1, 
-        display: 'flex', 
-        gap: '1px',
-        background: '#000',
-        overflow: 'hidden'
-      }}>
-        {/* LEFT */}
-        <div style={{ flex: 1, position: 'relative', background: '#0f0f1a' }}>
-          <canvas
-            ref={normalCanvasRef}
-            style={{ width: '100%', height: '100%', display: 'block' }}
-          />
-          
-          {/* Stats Overlay */}
-          <div style={{
-            position: 'absolute',
-            top: '12px',
-            left: '12px',
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(8px)',
-            padding: '10px 14px',
-            borderRadius: '6px',
-            border: '1px solid rgba(255, 68, 85, 0.3)',
-            minWidth: '140px'
-          }}>
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#ff4455',
-              fontWeight: '600',
-              marginBottom: '6px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Normal Thread
-            </div>
-            <div style={{ fontSize: '12px', color: '#d0d0d0', marginBottom: '3px' }}>
-              FPS: <span style={{ color: '#ffffff', fontWeight: '500' }}>{normalFps}</span>
-            </div>
-            <div style={{ fontSize: '12px', color: '#d0d0d0' }}>
-              Main CPU: <span style={{ color: '#ff4455', fontWeight: '500' }}>{normalCpu}ms</span>
+      <div className="canvas-container">
+        <div className="canvas-wrapper">
+          <canvas ref={normalCanvasRef} />
+          <div className="label label-left">
+            <span className="label-tag red">MAIN THREAD</span>
+            <div className="stats">
+              <div className="stat-row">
+                <span className="stat-label">FPS</span>
+                <span className="stat-value">{normalFps}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">CPU</span>
+                <span className="stat-value red">{normalCpu}ms</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* RIGHT */}
-        <div style={{ flex: 1, position: 'relative', background: '#0f0f1a' }}>
-          <canvas
-            ref={workerCanvasRef}
-            style={{ width: '100%', height: '100%', display: 'block' }}
-          />
-          
-          {/* Stats Overlay */}
-          <div style={{
-            position: 'absolute',
-            top: '12px',
-            right: '12px',
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(8px)',
-            padding: '10px 14px',
-            borderRadius: '6px',
-            border: '1px solid rgba(68, 255, 136, 0.3)',
-            minWidth: '140px'
-          }}>
-            <div style={{ 
-              fontSize: '11px', 
-              color: '#44ff88',
-              fontWeight: '600',
-              marginBottom: '6px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Web Worker
-            </div>
-            <div style={{ fontSize: '12px', color: '#d0d0d0', marginBottom: '3px' }}>
-              FPS: <span style={{ color: '#ffffff', fontWeight: '500' }}>{workerFps}</span>
-            </div>
-            <div style={{ fontSize: '12px', color: '#d0d0d0' }}>
-              Main CPU: <span style={{ color: '#44ff88', fontWeight: '500' }}>{workerCpu}ms</span>
+        <div className="divider"></div>
+
+        <div className="canvas-wrapper">
+          <canvas ref={workerCanvasRef} />
+          <div className="label label-right">
+            <span className="label-tag green">WEB WORKER</span>
+            <div className="stats">
+              <div className="stat-row">
+                <span className="stat-label">FPS</span>
+                <span className="stat-value">{workerFps}</span>
+              </div>
+              <div className="stat-row">
+                <span className="stat-label">CPU</span>
+                <span className="stat-value green">{workerCpu}ms</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Controls */}
-      <div style={{
-        background: '#15151f',
-        borderTop: '1px solid #25252f',
-        padding: '16px 20px'
-      }}>
-        <div style={{
-          maxWidth: '1000px',
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr 1fr',
-          gap: '16px',
-          alignItems: 'end'
-        }}>
-          {/* Input */}
-          <div>
-            <label style={{ 
-              display: 'block', 
-              marginBottom: '6px', 
-              fontSize: '12px', 
-              color: '#909090',
-              fontWeight: '500'
-            }}>
-              Test Input
-            </label>
-            <input
-              type="text"
-              value={testInput}
-              onChange={(e) => setTestInput(e.target.value)}
-              placeholder="Type here to test responsiveness..."
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                fontSize: '13px',
-                background: '#0f0f1a',
-                border: '1px solid #2a2a3a',
-                borderRadius: '4px',
-                color: '#e0e0e0',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#4a4a5a'}
-              onBlur={(e) => e.target.style.borderColor = '#2a2a3a'}
-            />
+      <div className="bottom-bar">
+        <div className="info-section">
+          <h1>three-webgpu-worker</h1>
+          <p>{meshCount.toLocaleString()} Menger Sponges • WebGPU • OffscreenCanvas</p>
+        </div>
+        <div className="comparison">
+          <div className="comparison-item">
+            <span className="dot red"></span>
+            <span>Main thread blocks UI during render</span>
           </div>
-
-          {/* Slider */}
-          <div>
-            <label style={{ 
-              display: 'block', 
-              marginBottom: '6px', 
-              fontSize: '12px', 
-              color: '#909090',
-              fontWeight: '500'
-            }}>
-              Test Slider: {sliderValue}
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={sliderValue}
-              onChange={(e) => setSliderValue(e.target.value)}
-              style={{
-                width: '100%',
-                height: '4px',
-                borderRadius: '2px',
-                outline: 'none',
-                background: '#2a2a3a',
-                cursor: 'pointer'
-              }}
-            />
-          </div>
-
-          {/* Info */}
-          <div style={{
-            fontSize: '12px',
-            color: '#909090',
-            lineHeight: '1.5'
-          }}>
-            The left side may lag when you interact.<br/>
-            Notice how the right stays smooth.
+          <div className="comparison-item">
+            <span className="dot green"></span>
+            <span>Worker keeps UI responsive</span>
           </div>
         </div>
       </div>

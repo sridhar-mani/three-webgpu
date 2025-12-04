@@ -29,6 +29,15 @@ const config =[
             sourcemap:true
         },
         plugins: [ resolve() ]
+    },{
+                input: 'src/MainThreadProxy.js',
+        external: ['three', 'three/webgpu','@sridhar-mani/dsa-js' ],   
+        output:{
+            file: 'dist/mainthreadproxy.js',
+            format: 'es',
+            sourcemap:true
+        },
+        plugins: [ resolve() ]
     }
 ];
 

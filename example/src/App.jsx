@@ -12,10 +12,31 @@ function App() {
 
   const [normalFps, setNormalFps] = useState(0);
   const [workerFps, setWorkerFps] = useState(0);
-  const [normalCpu, setNormalCpu] = useState(0);
-  const [workerCpu, setWorkerCpu] = useState(0);
   const [loading, setLoading] = useState(true);
   const [meshCount, setMeshCount] = useState(0);
+
+  // UI Test States
+  const [normalText, setNormalText] = useState('');
+  const [workerText, setWorkerText] = useState('');
+  const [normalSlider, setNormalSlider] = useState(50);
+  const [workerSlider, setWorkerSlider] = useState(50);
+  const [normalClicks, setNormalClicks] = useState(0);
+  const [workerClicks, setWorkerClicks] = useState(0);
+
+  // Lag detection
+  const [normalIsLagging, setNormalIsLagging] = useState(false);
+  const [workerIsLagging, setWorkerIsLagging] = useState(false);
+
+  // Input lag measurement
+  const [normalInputLag, setNormalInputLag] = useState(0);
+  const [workerInputLag, setWorkerInputLag] = useState(0);
+  const normalKeyDownTime = useRef(0);
+  const workerKeyDownTime = useRef(0);
+  const normalLagSamples = useRef([]);
+  const workerLagSamples = useRef([]);
+
+  // More instances for visible lag
+  const GRID_SIZE = 18;
 
   useEffect(() => {
     if (initRef.current) return;
@@ -38,7 +59,7 @@ function App() {
 
       renderer.setSize(width, height, false);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setClearColor(0xf5f5f5, 1);
+      renderer.setClearColor(0x1a1a2e, 1);
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(50, width / height, 1, 10000);
@@ -50,28 +71,21 @@ function App() {
       controls.dampingFactor = 0.05;
       controls.enablePan = false;
       controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.5;
+      controls.autoRotateSpeed = 1.2;
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
       const dirLight = new THREE.DirectionalLight(0xffffff, 1);
       dirLight.position.set(50, 50, 50);
       scene.add(dirLight);
       
-      const dirLight2 = new THREE.DirectionalLight(0x4466ff, 0.3);
+      const dirLight2 = new THREE.DirectionalLight(0xef4444, 0.3);
       dirLight2.position.set(-50, -20, -50);
       scene.add(dirLight2);
 
       const material = new THREE.MeshStandardMaterial({
-        color: 0xe74c3c,
+        color: 0xef4444,
         metalness: 0.4,
         roughness: 0.3,
-      });
-
-      const wireframeMat = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.08,
       });
 
       try {
@@ -88,43 +102,37 @@ function App() {
         const maxDim = Math.max(size.x, size.y, size.z);
         const scaleFactor = targetSize / maxDim;
 
-        const gridSize = 14;
         const spacing = 5;
         let idx = 0;
-        const instanceCount = gridSize * gridSize * gridSize;
+        const instanceCount = GRID_SIZE * GRID_SIZE * GRID_SIZE;
         setMeshCount(instanceCount);
 
         const instancedMesh = new THREE.InstancedMesh(geo, material, instanceCount);
-        const instancedWireframe = new THREE.InstancedMesh(geo, wireframeMat, instanceCount);
 
         const matrix = new THREE.Matrix4();
         const position = new THREE.Vector3();
         const rotation = new THREE.Quaternion();
         const scale = new THREE.Vector3(scaleFactor, scaleFactor, scaleFactor);
 
-        for (let x = 0; x < gridSize; x++) {
-          for (let y = 0; y < gridSize; y++) {
-            for (let z = 0; z < gridSize; z++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+          for (let y = 0; y < GRID_SIZE; y++) {
+            for (let z = 0; z < GRID_SIZE; z++) {
               position.set(
-                (x - gridSize / 2) * spacing,
-                (y - gridSize / 2) * spacing,
-                (z - gridSize / 2) * spacing
+                (x - GRID_SIZE / 2) * spacing,
+                (y - GRID_SIZE / 2) * spacing,
+                (z - GRID_SIZE / 2) * spacing
               );
               matrix.compose(position, rotation, scale);
               instancedMesh.setMatrixAt(idx, matrix);
-              instancedWireframe.setMatrixAt(idx, matrix);
               idx++;
             }
           }
         }
 
         instancedMesh.instanceMatrix.needsUpdate = true;
-        instancedWireframe.instanceMatrix.needsUpdate = true;
-
         scene.add(instancedMesh);
-        scene.add(instancedWireframe);
 
-        const gridExtend = (gridSize * spacing) / 2;
+        const gridExtend = (GRID_SIZE * spacing) / 2;
         camera.position.set(gridExtend * 2.5, gridExtend * 2, gridExtend * 2.5);
         camera.lookAt(0, 0, 0);
         controls.target.set(0, 0, 0);
@@ -133,7 +141,6 @@ function App() {
 
         let frameCount = 0;
         let lastTime = performance.now();
-        let cpuTimes = [];
 
         function animate() {
           const frameStart = performance.now();
@@ -143,13 +150,15 @@ function App() {
           renderer.render(scene, camera);
 
           const frameEnd = performance.now();
-          cpuTimes.push(frameEnd - frameStart);
-          if (cpuTimes.length > 30) cpuTimes.shift();
+          const frameDuration = frameEnd - frameStart;
+
+          if (frameDuration > 10) {
+            setNormalIsLagging(true);
+            setTimeout(() => setNormalIsLagging(false), 100);
+          }
 
           frameCount++;
           if (frameCount % 20 === 0) {
-            const avgCpu = cpuTimes.reduce((a, b) => a + b, 0) / cpuTimes.length;
-            setNormalCpu(avgCpu.toFixed(1));
             setNormalFps(Math.round(20000 / (frameEnd - lastTime)));
             lastTime = frameEnd;
           }
@@ -164,27 +173,24 @@ function App() {
     const setupWorker = async () => {
       if (!workerCanvasRef.current) return;
 
-
-
       const workerManager = new WorkerManager({
         canvas: workerCanvasRef.current,
       });
 
       if(import.meta.env.PROD){
-        workerManager._workerUrl = workerUrl
+        workerManager._workerUrl = workerUrl;
       }
 
       await workerManager._intializeRendererWorker({
         width: workerCanvasRef.current.clientWidth,
         height: workerCanvasRef.current.clientHeight,
         pixelRatio: Math.min(window.devicePixelRatio, 2),
-        background: 0xf5f5f5,
-      }).then(res=>{
-        console.log('Worker initialised:',res);
+        background: 0x1a1a2e,
+      }).then(res => {
+        console.log('Worker initialised:', res);
       }).catch(error => {
-    console.error('Worker initialization failed:', error);
-    console.error('Error stack:', error.stack);
-  });;
+        console.error('Worker initialization failed:', error);
+      });
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(
@@ -201,28 +207,21 @@ function App() {
       controls.dampingFactor = 0.05;
       controls.enablePan = false;
       controls.autoRotate = true;
-      controls.autoRotateSpeed = 0.5;
+      controls.autoRotateSpeed = 1.2;
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
       const dirLight = new THREE.DirectionalLight(0xffffff, 1);
       dirLight.position.set(50, 50, 50);
       scene.add(dirLight);
       
-      const dirLight2 = new THREE.DirectionalLight(0x4466ff, 0.3);
+      const dirLight2 = new THREE.DirectionalLight(0x10b981, 0.3);
       dirLight2.position.set(-50, -20, -50);
       scene.add(dirLight2);
 
       const material = new THREE.MeshStandardMaterial({
-        color: 0x2ecc71,
+        color: 0x10b981,
         metalness: 0.4,
         roughness: 0.3,
-      });
-
-      const wireframeMat = new THREE.MeshBasicMaterial({
-        color: 0xffffff,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.08,
       });
 
       try {
@@ -239,45 +238,38 @@ function App() {
         const maxDim = Math.max(size.x, size.y, size.z);
         const scaleFactor = targetSize / maxDim;
 
-        const gridSize = 14;
         const spacing = 5;
         let idx = 0;
-        const instanceCount = gridSize * gridSize * gridSize;
+        const instanceCount = GRID_SIZE * GRID_SIZE * GRID_SIZE;
 
         const instancedMesh = new THREE.InstancedMesh(geo, material, instanceCount);
-        const instancedWireframe = new THREE.InstancedMesh(geo, wireframeMat, instanceCount);
 
         const matrix = new THREE.Matrix4();
         const position = new THREE.Vector3();
         const rotation = new THREE.Quaternion();
         const scale = new THREE.Vector3(scaleFactor, scaleFactor, scaleFactor);
 
-        for (let x = 0; x < gridSize; x++) {
-          for (let y = 0; y < gridSize; y++) {
-            for (let z = 0; z < gridSize; z++) {
+        for (let x = 0; x < GRID_SIZE; x++) {
+          for (let y = 0; y < GRID_SIZE; y++) {
+            for (let z = 0; z < GRID_SIZE; z++) {
               position.set(
-                (x - gridSize / 2) * spacing,
-                (y - gridSize / 2) * spacing,
-                (z - gridSize / 2) * spacing
+                (x - GRID_SIZE / 2) * spacing,
+                (y - GRID_SIZE / 2) * spacing,
+                (z - GRID_SIZE / 2) * spacing
               );
               matrix.compose(position, rotation, scale);
               instancedMesh.setMatrixAt(idx, matrix);
-              instancedWireframe.setMatrixAt(idx, matrix);
               idx++;
             }
           }
         }
 
         instancedMesh.instanceMatrix.needsUpdate = true;
-        instancedWireframe.instanceMatrix.needsUpdate = true;
-
         scene.add(instancedMesh);
-        scene.add(instancedWireframe);
 
         instancedMesh.userData.instanceMatrices = Array.from(instancedMesh.instanceMatrix.array);
-        instancedWireframe.userData.instanceMatrices = Array.from(instancedWireframe.instanceMatrix.array);
 
-        const gridExtend = (gridSize * spacing) / 2;
+        const gridExtend = (GRID_SIZE * spacing) / 2;
         camera.position.set(gridExtend * 2.5, gridExtend * 2, gridExtend * 2.5);
         camera.lookAt(0, 0, 0);
         controls.target.set(0, 0, 0);
@@ -285,12 +277,11 @@ function App() {
         await workerManager.loadScene({
           sc: scene,
           cam: camera,
-          bgColor: 0xf5f5f5,
+          bgColor: 0x1a1a2e,
         });
 
         let frameCount = 0;
         let lastTime = performance.now();
-        let cpuTimes = [];
 
         function animate() {
           const frameStart = performance.now();
@@ -300,13 +291,15 @@ function App() {
           workerManager.updateCamera(camera);
 
           const frameEnd = performance.now();
-          cpuTimes.push(frameEnd - frameStart);
-          if (cpuTimes.length > 30) cpuTimes.shift();
+          const frameDuration = frameEnd - frameStart;
+
+          if (frameDuration > 10) {
+            setWorkerIsLagging(true);
+            setTimeout(() => setWorkerIsLagging(false), 100);
+          }
 
           frameCount++;
           if (frameCount % 20 === 0) {
-            const avgCpu = cpuTimes.reduce((a, b) => a + b, 0) / cpuTimes.length;
-            setWorkerCpu(avgCpu.toFixed(1));
             setWorkerFps(Math.round(20000 / (frameEnd - lastTime)));
             lastTime = frameEnd;
           }
@@ -327,65 +320,183 @@ function App() {
   }, []);
 
   return (
-    <div className="app-container">
+    <div className="app">
       {loading && (
-        <div className="loading-overlay">
-          <div className="loader"></div>
-          <span>Loading {meshCount.toLocaleString()} instances...</span>
+        <div className="loading-screen">
+          <div className="spinner"></div>
+          <p>Loading {meshCount.toLocaleString()} meshes...</p>
         </div>
       )}
 
-      <div className="canvas-container">
-        <div className="canvas-wrapper">
-          <canvas ref={normalCanvasRef} />
-          <div className="label label-left">
-            <span className="label-tag red">MAIN THREAD</span>
-            <div className="stats">
-              <div className="stat-row">
-                <span className="stat-label">FPS</span>
-                <span className="stat-value">{normalFps}</span>
-              </div>
-              <div className="stat-row">
-                <span className="stat-label">CPU</span>
-                <span className="stat-value red">{normalCpu}ms</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="divider"></div>
-
-        <div className="canvas-wrapper">
-          <canvas ref={workerCanvasRef} />
-          <div className="label label-right">
-            <span className="label-tag green">WEB WORKER</span>
-            <div className="stats">
-              <div className="stat-row">
-                <span className="stat-label">FPS</span>
-                <span className="stat-value">{workerFps}</span>
-              </div>
-              <div className="stat-row">
-                <span className="stat-label">CPU</span>
-                <span className="stat-value green">{workerCpu}ms</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bottom-bar">
-        <div className="info-section">
+      <header className="header">
+        <div className="header-content">
           <h1>three-webgpu-worker</h1>
-          <p>{meshCount.toLocaleString()} Menger Sponges • WebGPU • OffscreenCanvas</p>
+          <p>{meshCount.toLocaleString()} instances • WebGPU rendering comparison</p>
         </div>
-        <div className="comparison">
-          <div className="comparison-item">
-            <span className="dot red"></span>
-            <span>Main thread blocks UI during render</span>
+      </header>
+
+      <div className="demo-container">
+        {/* LEFT SIDE - MAIN THREAD */}
+        <div className="demo-side">
+          <div className="canvas-area">
+            <canvas ref={normalCanvasRef} />
           </div>
-          <div className="comparison-item">
-            <span className="dot green"></span>
-            <span>Worker keeps UI responsive</span>
+
+          <div className="side-header">
+            <div className="badge badge-red">Main Thread</div>
+            <div className={`status-light ${normalIsLagging ? 'lagging' : ''}`}></div>
+          </div>
+
+          <div className="test-panel">
+            <div className="metrics-grid">
+              <div className="metric">
+                <span className="metric-label">FPS</span>
+                <span className="metric-value danger">{normalFps}</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Input Lag</span>
+                <span className="metric-value danger">{normalInputLag} <span className="metric-unit">ms</span></span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Clicks</span>
+                <span className="metric-value">{normalClicks}</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Chars</span>
+                <span className="metric-value">{normalText.length}</span>
+              </div>
+            </div>
+            
+            <div className="test-row">
+              <div className="test-group">
+                <label>Type here (measures lag)</label>
+                <input
+                  type="text"
+                  value={normalText}
+                  onKeyDown={() => {
+                    normalKeyDownTime.current = performance.now();
+                  }}
+                  onChange={(e) => {
+                    const now = performance.now();
+                    if (normalKeyDownTime.current > 0) {
+                      const lag = now - normalKeyDownTime.current;
+                      normalLagSamples.current.push(lag);
+                      if (normalLagSamples.current.length > 10) normalLagSamples.current.shift();
+                      const avgLag = normalLagSamples.current.reduce((a, b) => a + b, 0) / normalLagSamples.current.length;
+                      setNormalInputLag(avgLag.toFixed(1));
+                    }
+                    setNormalText(e.target.value);
+                  }}
+                  placeholder="Feel the lag..."
+                  className="test-input"
+                />
+              </div>
+            </div>
+
+            <div className="test-row">
+              <div className="test-group">
+                <label>Drag slider</label>
+                <div className="slider-container">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={normalSlider}
+                    onChange={(e) => setNormalSlider(Number(e.target.value))}
+                    className="test-slider"
+                  />
+                  <span className="slider-value">{normalSlider}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setNormalClicks(c => c + 1)}
+                className="test-button"
+              >
+                +1
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT SIDE - WEB WORKER */}
+        <div className="demo-side">
+          <div className="canvas-area">
+            <canvas ref={workerCanvasRef} />
+          </div>
+
+          <div className="side-header">
+            <div className="badge badge-green">Worker Thread</div>
+            <div className={`status-light status-light-green ${workerIsLagging ? 'lagging' : ''}`}></div>
+          </div>
+
+          <div className="test-panel">
+            <div className="metrics-grid">
+              <div className="metric">
+                <span className="metric-label">FPS</span>
+                <span className="metric-value success">{workerFps}</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Input Lag</span>
+                <span className="metric-value success">{workerInputLag} <span className="metric-unit">ms</span></span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Clicks</span>
+                <span className="metric-value">{workerClicks}</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Chars</span>
+                <span className="metric-value">{workerText.length}</span>
+              </div>
+            </div>
+            
+            <div className="test-row">
+              <div className="test-group">
+                <label>Type here (measures lag)</label>
+                <input
+                  type="text"
+                  value={workerText}
+                  onKeyDown={() => {
+                    workerKeyDownTime.current = performance.now();
+                  }}
+                  onChange={(e) => {
+                    const now = performance.now();
+                    if (workerKeyDownTime.current > 0) {
+                      const lag = now - workerKeyDownTime.current;
+                      workerLagSamples.current.push(lag);
+                      if (workerLagSamples.current.length > 10) workerLagSamples.current.shift();
+                      const avgLag = workerLagSamples.current.reduce((a, b) => a + b, 0) / workerLagSamples.current.length;
+                      setWorkerInputLag(avgLag.toFixed(1));
+                    }
+                    setWorkerText(e.target.value);
+                  }}
+                  placeholder="Smooth!"
+                  className="test-input"
+                />
+              </div>
+            </div>
+
+            <div className="test-row">
+              <div className="test-group">
+                <label>Drag slider</label>
+                <div className="slider-container">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={workerSlider}
+                    onChange={(e) => setWorkerSlider(Number(e.target.value))}
+                    className="test-slider"
+                  />
+                  <span className="slider-value">{workerSlider}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setWorkerClicks(c => c + 1)}
+                className="test-button"
+              >
+                +1
+              </button>
+            </div>
           </div>
         </div>
       </div>

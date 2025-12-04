@@ -3,6 +3,7 @@ import * as THREE from 'three/webgpu';
 import './App.css';
 import { OrbitControls, STLLoader } from 'three/examples/jsm/Addons.js';
 import WorkerManager from 'three-webgpu-worker';
+import workerUrl from 'three-webgpu-worker/dist/workerhyb.js?url';
 
 function App() {
   const normalCanvasRef = useRef(null);
@@ -163,9 +164,15 @@ function App() {
     const setupWorker = async () => {
       if (!workerCanvasRef.current) return;
 
+
+
       const workerManager = new WorkerManager({
         canvas: workerCanvasRef.current,
       });
+
+      if(import.meta.env.PROD){
+        workerManager._workerUrl = workerUrl
+      }
 
       await workerManager._intializeRendererWorker({
         width: workerCanvasRef.current.clientWidth,

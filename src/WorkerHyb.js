@@ -1,5 +1,18 @@
 import * as THREE from 'three/webgpu';
-import ALLOWED_METHODS from './expMethods.js';
+
+const ALLOWED_METHODS = new Set([
+    'setSize',
+    'setPixelRatio',
+    'setClearColor',
+    'clear',
+    'compile',
+    'dispose',
+    'setScissorTest',
+    'setViewport',
+    'setRenderTarget'
+]);
+
+
 
 const threeObjs = {
     renderer: null,

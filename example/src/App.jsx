@@ -172,7 +172,12 @@ function App() {
         height: workerCanvasRef.current.clientHeight,
         pixelRatio: Math.min(window.devicePixelRatio, 2),
         background: 0xf5f5f5,
-      });
+      }).then(res=>{
+        console.log('Worker initialised:',res);
+      }).catch(error => {
+    console.error('Worker initialization failed:', error);
+    console.error('Error stack:', error.stack);
+  });;
 
       const scene = new THREE.Scene();
       const camera = new THREE.PerspectiveCamera(

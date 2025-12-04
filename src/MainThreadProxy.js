@@ -1,5 +1,17 @@
 import { generateUUID } from 'three/src/math/MathUtils.js';
-import ALLOWED_METHODS from './expMethods.js';
+
+const ALLOWED_METHODS = new Set([
+    'setSize',
+    'setPixelRatio',
+    'setClearColor',
+    'clear',
+    'compile',
+    'dispose',
+    'setScissorTest',
+    'setViewport',
+    'setRenderTarget'
+]);
+
 
 class WorkerManager {
     constructor({ canvas }={}){
@@ -29,7 +41,7 @@ class WorkerManager {
     }
 
     async _intializeRendererWorker(params){
-        this.rnW = new Worker(new URL('./worker.js',import.meta.url),{type:'module'});
+        this.rnW = new Worker(new URL('./workerhyb.js',import.meta.url),{type:'module'});
 
         this.rnW.onmessage = (e) => {
             const { type, message, data } = e.data;
@@ -58,10 +70,18 @@ class WorkerManager {
         };
 
         this.rnW.onerror = (err) => {
-            if (this._readyRejecter) {
-                this._readyRejecter(new Error(err.message));
-                this._readyRejecter = null;
-            }
+               console.error('Worker error event:', err);
+    console.error('Error details:', {
+        message: err.message,
+        filename: err.filename,
+        lineno: err.lineno,
+        colno: err.colno
+    });
+    
+    if (this._readyRejecter) {
+        this._readyRejecter(new Error(`Worker error: ${err.message} at ${err.filename}:${err.lineno}`));
+        this._readyRejecter = null;
+    }
         };
 
         const offscreen = this.canvas.transferControlToOffscreen();
@@ -185,7 +205,7 @@ class WorkerManager {
     async runCompute({ func, args_ar }){
         const id = generateUUID();
         const cmW = {
-            worker: new Worker(new URL('./worker.js', import.meta.url), { type: 'module' }),
+            worker: new Worker(new URL('./workerhyb.js', import.meta.url), { type: 'module' }),
             id: id,
             status: 'started'
         };

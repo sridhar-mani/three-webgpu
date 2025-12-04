@@ -22,7 +22,7 @@ const config =[
         plugins: [resolve(),terser()]
     },{
                 input: 'src/WorkerHyb.js',
-        external: ['three', 'three/webgpu','@sridhar-mani/dsa-js' ],   
+        external: [ ],   
         output:{
             file: 'dist/workerhyb.js',
             format: 'es',

@@ -174,6 +174,12 @@ class WorkerManager {
 
     return new Promise((res, rej) => {
       const id = generateUUID();
+      console.log(
+        "MainThreadProxy: Sending add_object message to worker, id:",
+        id,
+        "name:",
+        objDat.name
+      );
       this.rnW.postMessage({ type: "add_object", id, data: objDat });
 
       const handler = (e) => {

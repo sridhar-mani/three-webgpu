@@ -14,9 +14,17 @@ async function createScene(geometry, color) {
     color: color,
     metalness: 0.3,
     roughness: 0.4,
+    vertexColors: true,
   });
 
   const mesh = new THREE.InstancedMesh(geometry, material, GRID ** 3);
+
+  // Explicitly create instanceColor attribute
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(
+    new Float32Array(GRID ** 3 * 3),
+    3
+  );
+
   const dummy = new THREE.Object3D();
   const col = new THREE.Color();
 
@@ -36,6 +44,9 @@ async function createScene(geometry, color) {
       }
     }
   }
+
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.instanceColor.needsUpdate = true;
 
   scene.add(mesh);
   scene.add(new THREE.AmbientLight(0xffffff, 0.4));
@@ -246,8 +257,15 @@ export default function App() {
         color: 0xdc2626,
         metalness: 0.3,
         roughness: 0.4,
+        vertexColors: true,
       });
       const mainMesh = new THREE.InstancedMesh(geo, mainMat, count);
+
+      // Explicitly create instanceColor attribute
+      mainMesh.instanceColor = new THREE.InstancedBufferAttribute(
+        new Float32Array(count * 3),
+        3
+      );
 
       for (let i = 0; i < count; i++) {
         dummy.position.set(
@@ -264,6 +282,9 @@ export default function App() {
         mainMesh.setMatrixAt(i, dummy.matrix);
         mainMesh.setColorAt(i, color.setHSL(Math.random(), 0.7, 0.5));
       }
+
+      mainMesh.instanceMatrix.needsUpdate = true;
+      mainMesh.instanceColor.needsUpdate = true;
       mainSceneRef.current.add(mainMesh);
 
       if (workerManagerRef.current) {
@@ -271,8 +292,15 @@ export default function App() {
           color: 0x10b981,
           metalness: 0.3,
           roughness: 0.4,
+          vertexColors: true,
         });
         const workerMesh = new THREE.InstancedMesh(geo, workerMat, count);
+
+        // Explicitly create instanceColor attribute
+        workerMesh.instanceColor = new THREE.InstancedBufferAttribute(
+          new Float32Array(count * 3),
+          3
+        );
 
         for (let i = 0; i < count; i++) {
           dummy.position.set(
@@ -289,9 +317,10 @@ export default function App() {
           workerMesh.setMatrixAt(i, dummy.matrix);
           workerMesh.setColorAt(i, color.setHSL(Math.random(), 0.7, 0.5));
         }
+
         workerMesh.instanceMatrix.needsUpdate = true;
-        if (workerMesh.instanceColor)
-          workerMesh.instanceColor.needsUpdate = true;
+        workerMesh.instanceColor.needsUpdate = true;
+
         try {
           await workerManagerRef.current.addObj(workerMesh);
         } catch (err) {
@@ -316,8 +345,15 @@ export default function App() {
         color: 0xdc2626,
         metalness: 0.3,
         roughness: 0.4,
+        vertexColors: true,
       });
       const mainMesh = new THREE.InstancedMesh(geo, mainMat, n);
+
+      // Explicitly create instanceColor attribute
+      mainMesh.instanceColor = new THREE.InstancedBufferAttribute(
+        new Float32Array(n * 3),
+        3
+      );
 
       for (let i = 0; i < n; i++) {
         dummy.position.set(
@@ -334,6 +370,9 @@ export default function App() {
         mainMesh.setMatrixAt(i, dummy.matrix);
         mainMesh.setColorAt(i, color.setHSL(Math.random(), 0.7, 0.5));
       }
+
+      mainMesh.instanceMatrix.needsUpdate = true;
+      mainMesh.instanceColor.needsUpdate = true;
       mainSceneRef.current.add(mainMesh);
     }
 
@@ -342,8 +381,15 @@ export default function App() {
         color: 0x10b981,
         metalness: 0.3,
         roughness: 0.4,
+        vertexColors: true,
       });
       const workerMesh = new THREE.InstancedMesh(geo, workerMat, n);
+
+      // Explicitly create instanceColor attribute
+      workerMesh.instanceColor = new THREE.InstancedBufferAttribute(
+        new Float32Array(n * 3),
+        3
+      );
 
       for (let i = 0; i < n; i++) {
         dummy.position.set(
@@ -360,10 +406,20 @@ export default function App() {
         workerMesh.setMatrixAt(i, dummy.matrix);
         workerMesh.setColorAt(i, color.setHSL(Math.random(), 0.7, 0.5));
       }
+
       workerMesh.instanceMatrix.needsUpdate = true;
-      if (workerMesh.instanceColor) workerMesh.instanceColor.needsUpdate = true;
+      workerMesh.instanceColor.needsUpdate = true;
+
+      console.log(
+        "Calling workerManager.addObj with mesh:",
+        workerMesh.type,
+        "count:",
+        n
+      );
+
       try {
         await workerManagerRef.current.addObj(workerMesh);
+        console.log("Successfully added object to worker");
       } catch (err) {
         console.error("Failed to add object to worker:", err);
       }

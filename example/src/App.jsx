@@ -410,16 +410,18 @@ export default function App() {
       workerMesh.instanceMatrix.needsUpdate = true;
       workerMesh.instanceColor.needsUpdate = true;
 
-      console.log(
-        "Calling workerManager.addObj with mesh:",
-        workerMesh.type,
-        "count:",
-        n
-      );
+      console.log("Calling workerManager.addObj with:", {
+        type: workerMesh.type,
+        isInstancedMesh: workerMesh.isInstancedMesh,
+        count: workerMesh.count,
+        hasInstanceMatrix: !!workerMesh.instanceMatrix,
+        hasInstanceColor: !!workerMesh.instanceColor,
+        instanceColorLength: workerMesh.instanceColor?.array?.length,
+      });
 
       try {
-        await workerManagerRef.current.addObj(workerMesh);
-        console.log("Successfully added object to worker");
+        const result = await workerManagerRef.current.addObj(workerMesh);
+        console.log("Successfully added object to worker:", result);
       } catch (err) {
         console.error("Failed to add object to worker:", err);
       }

@@ -50,6 +50,17 @@ class WorkerManager {
       const { type, message, data } = e.data;
 
       switch (type) {
+        case "console":
+          // Forward worker console messages to main thread console
+          const prefix = `[Worker]`;
+          if (e.data.level === "log") {
+            console.log(prefix, ...e.data.args);
+          } else if (e.data.level === "error") {
+            console.error(prefix, ...e.data.args);
+          } else if (e.data.level === "warn") {
+            console.warn(prefix, ...e.data.args);
+          }
+          break;
         case "ready":
           this.isReady = true;
           if (this._readyResolver) {
@@ -171,6 +182,18 @@ class WorkerManager {
         ? Array.from(object.instanceColor.array)
         : undefined,
     };
+
+    console.log("MainThreadProxy.addObj - objDat:", {
+      type: objDat.type,
+      name: objDat.name,
+      count: objDat.count,
+      hasGeometry: !!objDat.geometry,
+      hasMaterial: !!objDat.material,
+      hasInstanceMatrices: !!objDat.instanceMatrices,
+      instanceMatricesLength: objDat.instanceMatrices?.length,
+      hasInstanceColors: !!objDat.instanceColors,
+      instanceColorsLength: objDat.instanceColors?.length,
+    });
 
     return new Promise((res, rej) => {
       const id = generateUUID();

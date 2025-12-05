@@ -12,7 +12,6 @@ const ALLOWED_METHODS = new Set([
   "setRenderTarget",
 ]);
 
-// Forward console logs from worker to main thread
 const originalLog = console.log;
 const originalError = console.error;
 const originalWarn = console.warn;
@@ -75,7 +74,6 @@ self.onmessage = async (e) => {
         updateMaterial(data);
         break;
       case "add_object":
-        console.log("Worker received add_object:", e.data.id);
         addObj(data, e.data.id);
         break;
       case "remove_object":
@@ -105,18 +103,6 @@ function updateMaterial(data) {
 }
 
 function addObj(data, id) {
-  console.log("Worker addObj called with:", {
-    id,
-    type: data.type,
-    isInstancedMesh: data.isInstancedMesh,
-    name: data.name,
-    count: data.count,
-    hasGeometry: !!data.geometry,
-    hasMaterial: !!data.material,
-    hasInstanceMatrices: !!data.instanceMatrices,
-    hasInstanceColors: !!data.instanceColors,
-  });
-
   try {
     let obj;
     const geometry = threeObjs.objLoader.parseGeometries([data.geometry])[
@@ -126,27 +112,16 @@ function addObj(data, id) {
       data.material.uuid
     ];
 
-    console.log("Worker parsed geometry and material:", {
-      geometry: geometry?.type,
-      material: material?.type,
-      materialVertexColors: material?.vertexColors,
-    });
-
-    // Ensure vertexColors is enabled for instance colors
     if (material && data.instanceColors) {
       material.vertexColors = true;
-      console.log("Worker enabled vertexColors on material");
     }
 
-    // Check isInstancedMesh flag, not type string
     if (data.isInstancedMesh) {
       obj = new THREE.InstancedMesh(geometry, material, data.count);
-      console.log("Worker created InstancedMesh with count:", data.count);
 
       if (data.instanceMatrices) {
         obj.instanceMatrix.array.set(data.instanceMatrices);
         obj.instanceMatrix.needsUpdate = true;
-        console.log("Worker set instance matrices");
       }
       if (data.instanceColors) {
         obj.instanceColor = new THREE.InstancedBufferAttribute(
@@ -154,52 +129,29 @@ function addObj(data, id) {
           3
         );
         obj.instanceColor.needsUpdate = true;
-        console.log(
-          "Worker set instance colors, length:",
-          data.instanceColors.length
-        );
       }
     } else {
       obj = new THREE.Mesh(geometry, material);
-      console.log("Worker created Mesh");
     }
 
     obj.name = data.name;
     obj.matrix.fromArray(data.matrix);
     obj.matrix.decompose(obj.position, obj.quaternion, obj.scale);
 
-    console.log("Worker adding object to scene:", {
-      name: obj.name,
-      type: obj.type,
-      isInstancedMesh: obj.isInstancedMesh,
-      hasInstanceColor: !!obj.instanceColor,
-    });
-
     threeObjs.scene.add(obj);
 
-    console.log(
-      "Worker scene now has",
-      threeObjs.scene.children.length,
-      "children"
-    );
-
-    // Ensure render loop is running
     if (
       !threeObjs.isRendering &&
       threeObjs.renderer &&
       threeObjs.camera &&
       threeObjs.scene
     ) {
-      console.log("Worker starting render loop");
       startInternalLoop();
-    } else {
-      console.log("Worker render loop already running:", threeObjs.isRendering);
     }
 
     self.postMessage({ type: "object_added", id, name: data.name });
-    console.log("Worker sent object_added message");
   } catch (er) {
-    console.error("Worker addObj error:", er.message, er.stack);
+    console.error("Worker addObj error:", er.message);
     self.postMessage({
       type: "error",
       id,

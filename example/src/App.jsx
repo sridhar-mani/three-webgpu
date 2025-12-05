@@ -19,7 +19,6 @@ async function createScene(geometry, color) {
 
   const mesh = new THREE.InstancedMesh(geometry, material, GRID ** 3);
 
-  // Explicitly create instanceColor attribute
   mesh.instanceColor = new THREE.InstancedBufferAttribute(
     new Float32Array(GRID ** 3 * 3),
     3
@@ -261,7 +260,6 @@ export default function App() {
       });
       const mainMesh = new THREE.InstancedMesh(geo, mainMat, count);
 
-      // Explicitly create instanceColor attribute
       mainMesh.instanceColor = new THREE.InstancedBufferAttribute(
         new Float32Array(count * 3),
         3
@@ -296,7 +294,6 @@ export default function App() {
         });
         const workerMesh = new THREE.InstancedMesh(geo, workerMat, count);
 
-        // Explicitly create instanceColor attribute
         workerMesh.instanceColor = new THREE.InstancedBufferAttribute(
           new Float32Array(count * 3),
           3
@@ -349,7 +346,6 @@ export default function App() {
       });
       const mainMesh = new THREE.InstancedMesh(geo, mainMat, n);
 
-      // Explicitly create instanceColor attribute
       mainMesh.instanceColor = new THREE.InstancedBufferAttribute(
         new Float32Array(n * 3),
         3
@@ -385,7 +381,6 @@ export default function App() {
       });
       const workerMesh = new THREE.InstancedMesh(geo, workerMat, n);
 
-      // Explicitly create instanceColor attribute
       workerMesh.instanceColor = new THREE.InstancedBufferAttribute(
         new Float32Array(n * 3),
         3
@@ -410,18 +405,8 @@ export default function App() {
       workerMesh.instanceMatrix.needsUpdate = true;
       workerMesh.instanceColor.needsUpdate = true;
 
-      console.log("Calling workerManager.addObj with:", {
-        type: workerMesh.type,
-        isInstancedMesh: workerMesh.isInstancedMesh,
-        count: workerMesh.count,
-        hasInstanceMatrix: !!workerMesh.instanceMatrix,
-        hasInstanceColor: !!workerMesh.instanceColor,
-        instanceColorLength: workerMesh.instanceColor?.array?.length,
-      });
-
       try {
-        const result = await workerManagerRef.current.addObj(workerMesh);
-        console.log("Successfully added object to worker:", result);
+        await workerManagerRef.current.addObj(workerMesh);
       } catch (err) {
         console.error("Failed to add object to worker:", err);
       }

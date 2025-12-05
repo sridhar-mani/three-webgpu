@@ -51,7 +51,6 @@ class WorkerManager {
 
       switch (type) {
         case "console":
-          // Forward worker console messages to main thread console
           const prefix = `[Worker]`;
           if (e.data.level === "log") {
             console.log(prefix, ...e.data.args);
@@ -170,7 +169,7 @@ class WorkerManager {
   async addObj(object, options = {}) {
     const objDat = {
       type: object.type,
-      isInstancedMesh: object.isInstancedMesh || false, // Add explicit flag
+      isInstancedMesh: object.isInstancedMesh || false,
       geometry: object.geometry.toJSON(),
       material: object.material.toJSON(),
       matrix: object.matrix.toArray(),
@@ -184,27 +183,8 @@ class WorkerManager {
         : undefined,
     };
 
-    console.log("MainThreadProxy.addObj - objDat:", {
-      type: objDat.type,
-      isInstancedMesh: objDat.isInstancedMesh,
-      name: objDat.name,
-      count: objDat.count,
-      hasGeometry: !!objDat.geometry,
-      hasMaterial: !!objDat.material,
-      hasInstanceMatrices: !!objDat.instanceMatrices,
-      instanceMatricesLength: objDat.instanceMatrices?.length,
-      hasInstanceColors: !!objDat.instanceColors,
-      instanceColorsLength: objDat.instanceColors?.length,
-    });
-
     return new Promise((res, rej) => {
       const id = generateUUID();
-      console.log(
-        "MainThreadProxy: Sending add_object message to worker, id:",
-        id,
-        "name:",
-        objDat.name
-      );
       this.rnW.postMessage({ type: "add_object", id, data: objDat });
 
       const handler = (e) => {

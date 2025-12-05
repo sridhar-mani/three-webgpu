@@ -170,6 +170,7 @@ class WorkerManager {
   async addObj(object, options = {}) {
     const objDat = {
       type: object.type,
+      isInstancedMesh: object.isInstancedMesh || false, // Add explicit flag
       geometry: object.geometry.toJSON(),
       material: object.material.toJSON(),
       matrix: object.matrix.toArray(),
@@ -185,6 +186,7 @@ class WorkerManager {
 
     console.log("MainThreadProxy.addObj - objDat:", {
       type: objDat.type,
+      isInstancedMesh: objDat.isInstancedMesh,
       name: objDat.name,
       count: objDat.count,
       hasGeometry: !!objDat.geometry,

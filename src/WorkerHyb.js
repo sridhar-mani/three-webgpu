@@ -108,6 +108,7 @@ function addObj(data, id) {
   console.log("Worker addObj called with:", {
     id,
     type: data.type,
+    isInstancedMesh: data.isInstancedMesh,
     name: data.name,
     count: data.count,
     hasGeometry: !!data.geometry,
@@ -137,10 +138,8 @@ function addObj(data, id) {
       console.log("Worker enabled vertexColors on material");
     }
 
-    if (data.type == "Mesh") {
-      obj = new THREE.Mesh(geometry, material);
-      console.log("Worker created Mesh");
-    } else if (data.type == "InstancedMesh") {
+    // Check isInstancedMesh flag, not type string
+    if (data.isInstancedMesh) {
       obj = new THREE.InstancedMesh(geometry, material, data.count);
       console.log("Worker created InstancedMesh with count:", data.count);
 
@@ -160,6 +159,9 @@ function addObj(data, id) {
           data.instanceColors.length
         );
       }
+    } else {
+      obj = new THREE.Mesh(geometry, material);
+      console.log("Worker created Mesh");
     }
 
     obj.name = data.name;

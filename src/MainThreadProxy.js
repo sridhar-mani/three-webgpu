@@ -145,7 +145,10 @@ class WorkerManager {
             geometry: object.geometry.toJSON(),
             material: object.material.toJSON(),
             matrix: object.matrix.toArray(),
-            name: options.name || object.name || generateUUID()
+            name: options.name || object.name || generateUUID(),
+            count: object.count || undefined,
+            instanceMatrices: object.instanceMatrix ? Array.from(object.instanceMatrix.array) : undefined,
+            instanceColors: object.instanceColor ? Array.from(object.instanceColor.array) : undefined
         }
 
         return new Promise((res, rej)=>{

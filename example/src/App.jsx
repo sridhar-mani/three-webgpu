@@ -1,501 +1,501 @@
-import { useEffect, useRef, useState } from 'react';
-import * as THREE from 'three/webgpu';
-import './App.css';
-import { OrbitControls, STLLoader } from 'three/examples/jsm/Addons.js';
-import WorkerManager from 'three-webgpu-worker';
-import workerUrl from 'three-webgpu-worker/dist/workerhyb.js?url';
+import { useEffect, useRef, useState } from "react";
+import * as THREE from "three/webgpu";
+import { OrbitControls, STLLoader } from "three/examples/jsm/Addons.js";
+import WorkerManager from "three-webgpu-worker";
+import "./App.css";
 
-function App() {
-  const normalCanvasRef = useRef(null);
-  const workerCanvasRef = useRef(null);
-  const initRef = useRef(false);
+const GRID = 14;
+const HISTORY_LEN = 60;
 
-  const [normalFps, setNormalFps] = useState(0);
-  const [workerFps, setWorkerFps] = useState(0);
+async function createScene(geometry, color) {
+  const scene = new THREE.Scene();
+
+  const material = new THREE.MeshStandardMaterial({
+    color: color,
+    metalness: 0.3,
+    roughness: 0.4,
+  });
+
+  const mesh = new THREE.InstancedMesh(geometry, material, GRID ** 3);
+  const dummy = new THREE.Object3D();
+  const col = new THREE.Color();
+
+  let i = 0;
+  for (let x = 0; x < GRID; x++) {
+    for (let y = 0; y < GRID; y++) {
+      for (let z = 0; z < GRID; z++) {
+        dummy.position.set(
+          (x - GRID / 2) * 6,
+          (y - GRID / 2) * 6,
+          (z - GRID / 2) * 6
+        );
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+        mesh.setColorAt(i, col.setHSL(Math.random(), 0.7, 0.5));
+        i++;
+      }
+    }
+  }
+
+  scene.add(mesh);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+  dirLight.position.set(50, 50, 50);
+  scene.add(dirLight);
+
+  const dirLight2 = new THREE.DirectionalLight(0x4488ff, 0.3);
+  dirLight2.position.set(-50, -20, -50);
+  scene.add(dirLight2);
+
+  return { scene, mesh, count: GRID ** 3 };
+}
+
+export default function App() {
   const [loading, setLoading] = useState(true);
-  const [meshCount, setMeshCount] = useState(0);
+  const [stress, setStress] = useState(false);
+  const [objectCount, setObjectCount] = useState(0);
+  const [mainFps, setMainFps] = useState(0);
+  const [workerFps, setWorkerFps] = useState(0);
+  const [mainLag, setMainLag] = useState(0);
+  const [workerLag, setWorkerLag] = useState(0);
+  const [mainHistory, setMainHistory] = useState(() =>
+    Array(HISTORY_LEN).fill(16)
+  );
+  const [workerHistory, setWorkerHistory] = useState(() =>
+    Array(HISTORY_LEN).fill(16)
+  );
 
-  const [normalText, setNormalText] = useState('');
-  const [workerText, setWorkerText] = useState('');
-  const [normalSlider, setNormalSlider] = useState(50);
-  const [workerSlider, setWorkerSlider] = useState(50);
-  const [normalClicks, setNormalClicks] = useState(0);
-  const [workerClicks, setWorkerClicks] = useState(0);
-
-  const [normalIsLagging, setNormalIsLagging] = useState(false);
-  const [workerIsLagging, setWorkerIsLagging] = useState(false);
-
-  const [normalInputLag, setNormalInputLag] = useState(0);
-  const [workerInputLag, setWorkerInputLag] = useState(0);
-  const normalKeyDownTime = useRef(0);
-  const workerKeyDownTime = useRef(0);
-  const normalLagSamples = useRef([]);
-  const workerLagSamples = useRef([]);
-
-  const GRID_SIZE = 18;
+  const mainCanvasRef = useRef(null);
+  const workerCanvasRef = useRef(null);
+  const mainSceneRef = useRef(null);
+  const workerManagerRef = useRef(null);
+  const workerCameraRef = useRef(null);
+  const workerControlsRef = useRef(null);
+  const geometryRef = useRef(null);
+  const keyTimeRef = useRef({ main: 0, worker: 0 });
+  const mainRendererRef = useRef(null);
+  const mainCameraRef = useRef(null);
+  const mainControlsRef = useRef(null);
 
   useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
+    let mounted = true;
+    let animId = null;
 
-    let normalAnimId, workerAnimId;
+    async function init() {
+      if (!mainCanvasRef.current || !workerCanvasRef.current) return;
 
-    const setupNormal = async () => {
-      if (!normalCanvasRef.current) return;
+      const w = Math.floor(window.innerWidth / 2);
+      const h = window.innerHeight - 48;
+      const pixelRatio = Math.min(window.devicePixelRatio, 2);
 
-      const renderer = new THREE.WebGPURenderer({
-        canvas: normalCanvasRef.current,
+      const loader = new STLLoader();
+      const geometry = await loader.loadAsync("/Menger_sponge_sample.stl");
+      if (!mounted) return;
+
+      geometry.center();
+      geometry.computeVertexNormals();
+      geometryRef.current = geometry;
+
+      const { scene: mainScene, count: c1 } = await createScene(
+        geometry,
+        0xdc2626
+      );
+      if (!mounted) return;
+
+      mainSceneRef.current = mainScene;
+
+      const mainCamera = new THREE.PerspectiveCamera(50, w / h, 1, 10000);
+      mainCamera.position.set(80, 60, 80);
+      mainCameraRef.current = mainCamera;
+
+      const mainRenderer = new THREE.WebGPURenderer({
+        canvas: mainCanvasRef.current,
         antialias: true,
       });
+      mainRenderer.setSize(w, h);
+      mainRenderer.setPixelRatio(pixelRatio);
+      mainRenderer.setClearColor(0xf5f5f5, 1);
+      await mainRenderer.init();
+      if (!mounted) return;
 
-      await renderer.init();
+      mainRendererRef.current = mainRenderer;
 
-      const width = normalCanvasRef.current.clientWidth;
-      const height = normalCanvasRef.current.clientHeight;
+      const mainControls = new OrbitControls(mainCamera, mainCanvasRef.current);
+      mainControls.enableDamping = true;
+      mainControls.dampingFactor = 0.05;
+      mainControls.enablePan = false;
+      mainControls.autoRotate = true;
+      mainControls.autoRotateSpeed = 1.0;
+      mainControlsRef.current = mainControls;
 
-      renderer.setSize(width, height, false);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setClearColor(0x1a1a2e, 1);
-
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(50, width / height, 1, 10000);
-      camera.position.set(80, 60, 80);
-      camera.lookAt(0, 0, 0);
-
-      const controls = new OrbitControls(camera, normalCanvasRef.current);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.enablePan = false;
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 1.2;
-
-      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-      const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-      dirLight.position.set(50, 50, 50);
-      scene.add(dirLight);
-      
-      const dirLight2 = new THREE.DirectionalLight(0xef4444, 0.3);
-      dirLight2.position.set(-50, -20, -50);
-      scene.add(dirLight2);
-
-      const material = new THREE.MeshStandardMaterial({
-        color: 0xef4444,
-        metalness: 0.4,
-        roughness: 0.3,
-      });
-
-      try {
-        const loader = new STLLoader();
-        const geo = await loader.loadAsync('/Menger_sponge_sample.stl');
-
-        geo.center();
-        geo.computeBoundingBox();
-        const bbox = geo.boundingBox;
-        const size = new THREE.Vector3();
-        bbox.getSize(size);
-
-        const targetSize = 3;
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const scaleFactor = targetSize / maxDim;
-
-        const spacing = 5;
-        let idx = 0;
-        const instanceCount = GRID_SIZE * GRID_SIZE * GRID_SIZE;
-        setMeshCount(instanceCount);
-
-        const instancedMesh = new THREE.InstancedMesh(geo, material, instanceCount);
-
-        const matrix = new THREE.Matrix4();
-        const position = new THREE.Vector3();
-        const rotation = new THREE.Quaternion();
-        const scale = new THREE.Vector3(scaleFactor, scaleFactor, scaleFactor);
-
-        for (let x = 0; x < GRID_SIZE; x++) {
-          for (let y = 0; y < GRID_SIZE; y++) {
-            for (let z = 0; z < GRID_SIZE; z++) {
-              position.set(
-                (x - GRID_SIZE / 2) * spacing,
-                (y - GRID_SIZE / 2) * spacing,
-                (z - GRID_SIZE / 2) * spacing
-              );
-              matrix.compose(position, rotation, scale);
-              instancedMesh.setMatrixAt(idx, matrix);
-              idx++;
-            }
-          }
-        }
-
-        instancedMesh.instanceMatrix.needsUpdate = true;
-        scene.add(instancedMesh);
-
-        const gridExtend = (GRID_SIZE * spacing) / 2;
-        camera.position.set(gridExtend * 2.5, gridExtend * 2, gridExtend * 2.5);
-        camera.lookAt(0, 0, 0);
-        controls.target.set(0, 0, 0);
-
-        setLoading(false);
-
-        let frameCount = 0;
-        let lastTime = performance.now();
-
-        function animate() {
-          const frameStart = performance.now();
-          normalAnimId = requestAnimationFrame(animate);
-
-          controls.update();
-          renderer.render(scene, camera);
-
-          const frameEnd = performance.now();
-          const frameDuration = frameEnd - frameStart;
-
-          if (frameDuration > 10) {
-            setNormalIsLagging(true);
-            setTimeout(() => setNormalIsLagging(false), 100);
-          }
-
-          frameCount++;
-          if (frameCount % 20 === 0) {
-            setNormalFps(Math.round(20000 / (frameEnd - lastTime)));
-            lastTime = frameEnd;
-          }
-        }
-        animate();
-      } catch (err) {
-        console.error('Normal setup error:', err);
-        setLoading(false);
-      }
-    };
-
-    const setupWorker = async () => {
-      if (!workerCanvasRef.current) return;
+      const { scene: workerScene } = await createScene(geometry, 0x10b981);
+      if (!mounted) return;
 
       const workerManager = new WorkerManager({
         canvas: workerCanvasRef.current,
       });
-
-      if(import.meta.env.PROD){
-        workerManager._workerUrl = workerUrl;
-      }
+      workerManagerRef.current = workerManager;
 
       await workerManager._intializeRendererWorker({
-        width: workerCanvasRef.current.clientWidth,
-        height: workerCanvasRef.current.clientHeight,
-        pixelRatio: Math.min(window.devicePixelRatio, 2),
-        background: 0x1a1a2e,
-      }).then(res => {
-        console.log('Worker initialised:', res);
-      }).catch(error => {
-        console.error('Worker initialization failed:', error);
+        width: w,
+        height: h,
+        pixelRatio: pixelRatio,
+        background: 0xf5f5f5,
+        antialias: true,
       });
+      if (!mounted) return;
 
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(
-        50,
-        workerCanvasRef.current.clientWidth / workerCanvasRef.current.clientHeight,
-        1,
-        10000
+      const workerCamera = new THREE.PerspectiveCamera(50, w / h, 1, 10000);
+      workerCamera.position.set(80, 60, 80);
+      workerCameraRef.current = workerCamera;
+
+      await workerManager.loadScene({
+        sc: workerScene,
+        cam: workerCamera,
+        bgColor: 0xf5f5f5,
+      });
+      if (!mounted) return;
+
+      const workerControls = new OrbitControls(
+        workerCamera,
+        workerCanvasRef.current
       );
-      camera.position.set(80, 60, 80);
-      camera.lookAt(0, 0, 0);
+      workerControls.enableDamping = true;
+      workerControls.dampingFactor = 0.05;
+      workerControls.enablePan = false;
+      workerControls.autoRotate = true;
+      workerControls.autoRotateSpeed = 1.0;
+      workerControlsRef.current = workerControls;
 
-      const controls = new OrbitControls(camera, workerCanvasRef.current);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.05;
-      controls.enablePan = false;
-      controls.autoRotate = true;
-      controls.autoRotateSpeed = 1.2;
+      setObjectCount(c1 * 2);
+      setLoading(false);
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-      const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-      dirLight.position.set(50, 50, 50);
-      scene.add(dirLight);
-      
-      const dirLight2 = new THREE.DirectionalLight(0x10b981, 0.3);
-      dirLight2.position.set(-50, -20, -50);
-      scene.add(dirLight2);
+      let lastMain = performance.now();
+      let frameCount = 0;
+      let lastFpsTime = performance.now();
+      let workerFrameCount = 0;
+      let lastWorkerFpsTime = performance.now();
 
-      const material = new THREE.MeshStandardMaterial({
-        color: 0x10b981,
-        metalness: 0.4,
-        roughness: 0.3,
-      });
+      function loop() {
+        if (!mounted) return;
 
-      try {
-        const loader = new STLLoader();
-        const geo = await loader.loadAsync('/Menger_sponge_sample.stl');
+        const now = performance.now();
+        const dt = now - lastMain;
+        lastMain = now;
 
-        geo.center();
-        geo.computeBoundingBox();
-        const bbox = geo.boundingBox;
-        const size = new THREE.Vector3();
-        bbox.getSize(size);
-
-        const targetSize = 3;
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const scaleFactor = targetSize / maxDim;
-
-        const spacing = 5;
-        let idx = 0;
-        const instanceCount = GRID_SIZE * GRID_SIZE * GRID_SIZE;
-
-        const instancedMesh = new THREE.InstancedMesh(geo, material, instanceCount);
-
-        const matrix = new THREE.Matrix4();
-        const position = new THREE.Vector3();
-        const rotation = new THREE.Quaternion();
-        const scale = new THREE.Vector3(scaleFactor, scaleFactor, scaleFactor);
-
-        for (let x = 0; x < GRID_SIZE; x++) {
-          for (let y = 0; y < GRID_SIZE; y++) {
-            for (let z = 0; z < GRID_SIZE; z++) {
-              position.set(
-                (x - GRID_SIZE / 2) * spacing,
-                (y - GRID_SIZE / 2) * spacing,
-                (z - GRID_SIZE / 2) * spacing
-              );
-              matrix.compose(position, rotation, scale);
-              instancedMesh.setMatrixAt(idx, matrix);
-              idx++;
-            }
-          }
+        frameCount++;
+        if (now - lastFpsTime >= 1000) {
+          setMainFps(frameCount);
+          frameCount = 0;
+          lastFpsTime = now;
         }
 
-        instancedMesh.instanceMatrix.needsUpdate = true;
-        scene.add(instancedMesh);
-
-        instancedMesh.userData.instanceMatrices = Array.from(instancedMesh.instanceMatrix.array);
-
-        const gridExtend = (GRID_SIZE * spacing) / 2;
-        camera.position.set(gridExtend * 2.5, gridExtend * 2, gridExtend * 2.5);
-        camera.lookAt(0, 0, 0);
-        controls.target.set(0, 0, 0);
-
-        await workerManager.loadScene({
-          sc: scene,
-          cam: camera,
-          bgColor: 0x1a1a2e,
-        });
-
-        let frameCount = 0;
-        let lastTime = performance.now();
-
-        function animate() {
-          const frameStart = performance.now();
-          workerAnimId = requestAnimationFrame(animate);
-
-          controls.update();
-          workerManager.updateCamera(camera);
-
-          const frameEnd = performance.now();
-          const frameDuration = frameEnd - frameStart;
-
-          if (frameDuration > 10) {
-            setWorkerIsLagging(true);
-            setTimeout(() => setWorkerIsLagging(false), 100);
-          }
-
-          frameCount++;
-          if (frameCount % 20 === 0) {
-            setWorkerFps(Math.round(20000 / (frameEnd - lastTime)));
-            lastTime = frameEnd;
-          }
+        workerFrameCount++;
+        if (now - lastWorkerFpsTime >= 1000) {
+          setWorkerFps(workerFrameCount);
+          workerFrameCount = 0;
+          lastWorkerFpsTime = now;
         }
-        animate();
-      } catch (err) {
-        console.error('Worker setup error:', err);
+
+        setMainHistory((prev) => [...prev.slice(1), dt]);
+        setWorkerHistory((prev) => [...prev.slice(1), dt]);
+
+        mainControls.update();
+        workerControls.update();
+        workerManager.updateCamera(workerCamera);
+
+        mainRenderer.render(mainScene, mainCamera);
+        animId = requestAnimationFrame(loop);
       }
-    };
+      loop();
 
-    setupNormal().catch(console.error);
-    setupWorker().catch(console.error);
+      const onResize = () => {
+        const nw = Math.floor(window.innerWidth / 2);
+        const nh = window.innerHeight - 48;
+        mainCamera.aspect = nw / nh;
+        mainCamera.updateProjectionMatrix();
+        mainRenderer.setSize(nw, nh);
+        workerCamera.aspect = nw / nh;
+        workerCamera.updateProjectionMatrix();
+        workerManager.setSize(nw, nh);
+      };
+      window.addEventListener("resize", onResize);
+    }
+
+    init();
 
     return () => {
-      if (normalAnimId) cancelAnimationFrame(normalAnimId);
-      if (workerAnimId) cancelAnimationFrame(workerAnimId);
+      mounted = false;
+      if (animId) cancelAnimationFrame(animId);
+      mainRendererRef.current?.dispose();
+      workerManagerRef.current?.stopRenderLoop();
     };
   }, []);
+
+  useEffect(() => {
+    if (!stress || !mainSceneRef.current || !geometryRef.current) return;
+
+    const interval = setInterval(async () => {
+      const geo = geometryRef.current;
+      const count = 200;
+      const dummy = new THREE.Object3D();
+      const color = new THREE.Color();
+
+      const mainMat = new THREE.MeshStandardMaterial({
+        color: 0xdc2626,
+        metalness: 0.3,
+        roughness: 0.4,
+      });
+      const mainMesh = new THREE.InstancedMesh(geo, mainMat, count);
+
+      for (let i = 0; i < count; i++) {
+        dummy.position.set(
+          (Math.random() - 0.5) * 100,
+          (Math.random() - 0.5) * 100,
+          (Math.random() - 0.5) * 100
+        );
+        dummy.rotation.set(
+          Math.random() * Math.PI,
+          Math.random() * Math.PI,
+          Math.random() * Math.PI
+        );
+        dummy.updateMatrix();
+        mainMesh.setMatrixAt(i, dummy.matrix);
+        mainMesh.setColorAt(i, color.setHSL(Math.random(), 0.7, 0.5));
+      }
+      mainSceneRef.current.add(mainMesh);
+
+      if (workerManagerRef.current) {
+        const workerMat = new THREE.MeshStandardMaterial({
+          color: 0x10b981,
+          metalness: 0.3,
+          roughness: 0.4,
+        });
+        const workerMesh = new THREE.InstancedMesh(geo, workerMat, count);
+
+        for (let i = 0; i < count; i++) {
+          dummy.position.set(
+            (Math.random() - 0.5) * 100,
+            (Math.random() - 0.5) * 100,
+            (Math.random() - 0.5) * 100
+          );
+          dummy.rotation.set(
+            Math.random() * Math.PI,
+            Math.random() * Math.PI,
+            Math.random() * Math.PI
+          );
+          dummy.updateMatrix();
+          workerMesh.setMatrixAt(i, dummy.matrix);
+          workerMesh.setColorAt(i, color.setHSL(Math.random(), 0.7, 0.5));
+        }
+        workerMesh.instanceMatrix.needsUpdate = true;
+        if (workerMesh.instanceColor)
+          workerMesh.instanceColor.needsUpdate = true;
+        try {
+          await workerManagerRef.current.addObj(workerMesh);
+        } catch (err) {
+          console.error("Failed to add object to worker:", err);
+        }
+      }
+
+      setObjectCount((prev) => prev + count * 2);
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [stress]);
+
+  const addObjects = async (n) => {
+    if (!geometryRef.current) return;
+    const geo = geometryRef.current;
+    const dummy = new THREE.Object3D();
+    const color = new THREE.Color();
+
+    if (mainSceneRef.current) {
+      const mainMat = new THREE.MeshStandardMaterial({
+        color: 0xdc2626,
+        metalness: 0.3,
+        roughness: 0.4,
+      });
+      const mainMesh = new THREE.InstancedMesh(geo, mainMat, n);
+
+      for (let i = 0; i < n; i++) {
+        dummy.position.set(
+          (Math.random() - 0.5) * 100,
+          (Math.random() - 0.5) * 100,
+          (Math.random() - 0.5) * 100
+        );
+        dummy.rotation.set(
+          Math.random() * Math.PI,
+          Math.random() * Math.PI,
+          Math.random() * Math.PI
+        );
+        dummy.updateMatrix();
+        mainMesh.setMatrixAt(i, dummy.matrix);
+        mainMesh.setColorAt(i, color.setHSL(Math.random(), 0.7, 0.5));
+      }
+      mainSceneRef.current.add(mainMesh);
+    }
+
+    if (workerManagerRef.current) {
+      const workerMat = new THREE.MeshStandardMaterial({
+        color: 0x10b981,
+        metalness: 0.3,
+        roughness: 0.4,
+      });
+      const workerMesh = new THREE.InstancedMesh(geo, workerMat, n);
+
+      for (let i = 0; i < n; i++) {
+        dummy.position.set(
+          (Math.random() - 0.5) * 100,
+          (Math.random() - 0.5) * 100,
+          (Math.random() - 0.5) * 100
+        );
+        dummy.rotation.set(
+          Math.random() * Math.PI,
+          Math.random() * Math.PI,
+          Math.random() * Math.PI
+        );
+        dummy.updateMatrix();
+        workerMesh.setMatrixAt(i, dummy.matrix);
+        workerMesh.setColorAt(i, color.setHSL(Math.random(), 0.7, 0.5));
+      }
+      workerMesh.instanceMatrix.needsUpdate = true;
+      if (workerMesh.instanceColor) workerMesh.instanceColor.needsUpdate = true;
+      try {
+        await workerManagerRef.current.addObj(workerMesh);
+      } catch (err) {
+        console.error("Failed to add object to worker:", err);
+      }
+    }
+
+    setObjectCount((prev) => prev + n * 2);
+  };
+
+  const handleKeyDown = (side) => () => {
+    keyTimeRef.current[side] = performance.now();
+  };
+
+  const handleChange = (side) => () => {
+    const start = keyTimeRef.current[side];
+    if (start) {
+      const lag = performance.now() - start;
+      if (side === "main") setMainLag(Math.round(lag));
+      else setWorkerLag(Math.round(lag));
+    }
+  };
+
+  const getBarColor = (ms) => {
+    if (ms < 17) return "#10b981";
+    if (ms < 33) return "#f59e0b";
+    return "#ef4444";
+  };
 
   return (
     <div className="app">
       {loading && (
-        <div className="loading-screen">
-          <div className="spinner"></div>
-          <p>Loading {meshCount.toLocaleString()} meshes...</p>
+        <div className="loading">
+          <div className="spinner" />
         </div>
       )}
 
-      <header className="header">
-        <div className="header-content">
-          <h1>three-webgpu-worker</h1>
-          <p>{meshCount.toLocaleString()} instances • WebGPU rendering comparison</p>
+      <div className="toolbar">
+        <div className="brand">Three.js WebGPU Worker Demo</div>
+        <div className="controls">
+          <button onClick={() => addObjects(500)}>+500</button>
+          <button onClick={() => addObjects(1000)}>+1K</button>
+          <button onClick={() => addObjects(2000)}>+2K</button>
         </div>
-      </header>
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={stress}
+            onChange={(e) => setStress(e.target.checked)}
+          />
+          Auto Stress
+        </label>
+        <div className="count">{objectCount.toLocaleString()} objects</div>
+      </div>
 
-      <div className="demo-container">
-        <div className="demo-side">
-          <div className="side-header">
-            <div className="badge badge-red">Main Thread</div>
-            <div className={`status-light ${normalIsLagging ? 'lagging' : ''}`}></div>
+      <div className="panels">
+        <div className="panel">
+          <div className="panel-label red">Main Thread</div>
+          <div className="stats">
+            <div className="stat">
+              <span className={`val ${mainFps < 30 ? "red" : "green"}`}>
+                {mainFps}
+              </span>
+              <span className="label">FPS</span>
+            </div>
+            <div className="stat">
+              <span className={`val ${mainLag > 50 ? "red" : "green"}`}>
+                {mainLag}
+              </span>
+              <span className="label">Input ms</span>
+            </div>
           </div>
-
-          <div className="canvas-area">
-            <canvas ref={normalCanvasRef} />
+          <canvas ref={mainCanvasRef} />
+          <div className="frame-graph">
+            {mainHistory.map((ms, i) => (
+              <div
+                key={i}
+                className="bar"
+                style={{
+                  height: `${Math.min((ms / 50) * 100, 100)}%`,
+                  background: getBarColor(ms),
+                }}
+              />
+            ))}
           </div>
-
-          <div className="test-panel">
-            <div className="metrics-grid">
-              <div className="metric">
-                <span className="metric-label">FPS</span>
-                <span className="metric-value danger">{normalFps}</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Input Lag</span>
-                <span className="metric-value danger">{normalInputLag} <span className="metric-unit">ms</span></span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Clicks</span>
-                <span className="metric-value">{normalClicks}</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Chars</span>
-                <span className="metric-value">{normalText.length}</span>
-              </div>
-            </div>
-            
-            <div className="test-row">
-              <div className="test-group">
-                <label>Type here (measures lag)</label>
-                <input
-                  type="text"
-                  value={normalText}
-                  onKeyDown={() => {
-                    normalKeyDownTime.current = performance.now();
-                  }}
-                  onChange={(e) => {
-                    const now = performance.now();
-                    if (normalKeyDownTime.current > 0) {
-                      const lag = now - normalKeyDownTime.current;
-                      normalLagSamples.current.push(lag);
-                      if (normalLagSamples.current.length > 10) normalLagSamples.current.shift();
-                      const avgLag = normalLagSamples.current.reduce((a, b) => a + b, 0) / normalLagSamples.current.length;
-                      setNormalInputLag(avgLag.toFixed(1));
-                    }
-                    setNormalText(e.target.value);
-                  }}
-                  placeholder="Feel the lag..."
-                  className="test-input"
-                />
-              </div>
-            </div>
-
-            <div className="test-row">
-              <div className="test-group">
-                <label>Drag slider</label>
-                <div className="slider-container">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={normalSlider}
-                    onChange={(e) => setNormalSlider(Number(e.target.value))}
-                    className="test-slider"
-                  />
-                  <span className="slider-value">{normalSlider}</span>
-                </div>
-              </div>
-              <button
-                onClick={() => setNormalClicks(c => c + 1)}
-                className="test-button"
-              >
-                +1
-              </button>
-            </div>
+          <div className="inputs">
+            <input
+              type="text"
+              placeholder="Type here..."
+              onKeyDown={handleKeyDown("main")}
+              onChange={handleChange("main")}
+            />
           </div>
         </div>
 
-        <div className="demo-side">
-          <div className="side-header">
-            <div className="badge badge-green">Worker Thread</div>
-            <div className={`status-light status-light-green ${workerIsLagging ? 'lagging' : ''}`}></div>
+        <div className="panel">
+          <div className="panel-label green">Worker Thread</div>
+          <div className="stats">
+            <div className="stat">
+              <span className={`val ${workerFps < 30 ? "red" : "green"}`}>
+                {workerFps}
+              </span>
+              <span className="label">FPS</span>
+            </div>
+            <div className="stat">
+              <span className={`val ${workerLag > 50 ? "red" : "green"}`}>
+                {workerLag}
+              </span>
+              <span className="label">Input ms</span>
+            </div>
           </div>
-
-          <div className="canvas-area">
-            <canvas ref={workerCanvasRef} />
+          <canvas ref={workerCanvasRef} />
+          <div className="frame-graph">
+            {workerHistory.map((ms, i) => (
+              <div
+                key={i}
+                className="bar"
+                style={{
+                  height: `${Math.min((ms / 50) * 100, 100)}%`,
+                  background: getBarColor(ms),
+                }}
+              />
+            ))}
           </div>
-
-          <div className="test-panel">
-            <div className="metrics-grid">
-              <div className="metric">
-                <span className="metric-label">FPS</span>
-                <span className="metric-value success">{workerFps}</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Input Lag</span>
-                <span className="metric-value success">{workerInputLag} <span className="metric-unit">ms</span></span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Clicks</span>
-                <span className="metric-value">{workerClicks}</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Chars</span>
-                <span className="metric-value">{workerText.length}</span>
-              </div>
-            </div>
-            
-            <div className="test-row">
-              <div className="test-group">
-                <label>Type here (measures lag)</label>
-                <input
-                  type="text"
-                  value={workerText}
-                  onKeyDown={() => {
-                    workerKeyDownTime.current = performance.now();
-                  }}
-                  onChange={(e) => {
-                    const now = performance.now();
-                    if (workerKeyDownTime.current > 0) {
-                      const lag = now - workerKeyDownTime.current;
-                      workerLagSamples.current.push(lag);
-                      if (workerLagSamples.current.length > 10) workerLagSamples.current.shift();
-                      const avgLag = workerLagSamples.current.reduce((a, b) => a + b, 0) / workerLagSamples.current.length;
-                      setWorkerInputLag(avgLag.toFixed(1));
-                    }
-                    setWorkerText(e.target.value);
-                  }}
-                  placeholder="Smooth!"
-                  className="test-input"
-                />
-              </div>
-            </div>
-
-            <div className="test-row">
-              <div className="test-group">
-                <label>Drag slider</label>
-                <div className="slider-container">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={workerSlider}
-                    onChange={(e) => setWorkerSlider(Number(e.target.value))}
-                    className="test-slider"
-                  />
-                  <span className="slider-value">{workerSlider}</span>
-                </div>
-              </div>
-              <button
-                onClick={() => setWorkerClicks(c => c + 1)}
-                className="test-button"
-              >
-                +1
-              </button>
-            </div>
+          <div className="inputs">
+            <input
+              type="text"
+              placeholder="Type here..."
+              onKeyDown={handleKeyDown("worker")}
+              onChange={handleChange("worker")}
+            />
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-export default App;

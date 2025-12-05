@@ -99,12 +99,21 @@ function addObj(data, id){
                 obj.instanceMatrix.array.set(data.instanceMatrices);
                 obj.instanceMatrix.needsUpdate = true;
             }
+            if(data.instanceColors){
+                obj.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(data.instanceColors), 3);
+                obj.instanceColor.needsUpdate = true;
+            }
         }
 
         obj.name = data.name;
         obj.matrix.fromArray(data.matrix);
         obj.matrix.decompose(obj.position, obj.quaternion, obj.scale);
         threeObjs.scene.add(obj);
+        
+        // Ensure render loop is running
+        if(!threeObjs.isRendering && threeObjs.renderer && threeObjs.camera && threeObjs.scene){
+            startInternalLoop();
+        }
         
         self.postMessage({ type: 'object_added', id, name: data.name });
     } catch(er){

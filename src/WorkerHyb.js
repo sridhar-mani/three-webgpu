@@ -12,25 +12,6 @@ const ALLOWED_METHODS = new Set([
   "setRenderTarget",
 ]);
 
-const originalLog = console.log;
-const originalError = console.error;
-const originalWarn = console.warn;
-
-console.log = function (...args) {
-  originalLog.apply(console, args);
-  self.postMessage({ type: "console", level: "log", args: args });
-};
-
-console.error = function (...args) {
-  originalError.apply(console, args);
-  self.postMessage({ type: "console", level: "error", args: args });
-};
-
-console.warn = function (...args) {
-  originalWarn.apply(console, args);
-  self.postMessage({ type: "console", level: "warn", args: args });
-};
-
 const threeObjs = {
   renderer: null,
   device: null,
@@ -112,10 +93,13 @@ function addObj(data, id) {
       data.material.uuid
     ];
 
+    // FIX: Enable vertexColors for instance colors
     if (material && data.instanceColors) {
       material.vertexColors = true;
     }
 
+    // FIX: Check isInstancedMesh flag, not type string
+    // (InstancedMesh.type returns "Mesh" due to inheritance)
     if (data.isInstancedMesh) {
       obj = new THREE.InstancedMesh(geometry, material, data.count);
 
@@ -140,6 +124,7 @@ function addObj(data, id) {
 
     threeObjs.scene.add(obj);
 
+    // Ensure render loop is running
     if (
       !threeObjs.isRendering &&
       threeObjs.renderer &&
@@ -151,7 +136,6 @@ function addObj(data, id) {
 
     self.postMessage({ type: "object_added", id, name: data.name });
   } catch (er) {
-    console.error("Worker addObj error:", er.message);
     self.postMessage({
       type: "error",
       id,

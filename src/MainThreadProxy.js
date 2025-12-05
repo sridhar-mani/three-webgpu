@@ -50,16 +50,6 @@ class WorkerManager {
       const { type, message, data } = e.data;
 
       switch (type) {
-        case "console":
-          const prefix = `[Worker]`;
-          if (e.data.level === "log") {
-            console.log(prefix, ...e.data.args);
-          } else if (e.data.level === "error") {
-            console.error(prefix, ...e.data.args);
-          } else if (e.data.level === "warn") {
-            console.warn(prefix, ...e.data.args);
-          }
-          break;
         case "ready":
           this.isReady = true;
           if (this._readyResolver) {
@@ -169,7 +159,7 @@ class WorkerManager {
   async addObj(object, options = {}) {
     const objDat = {
       type: object.type,
-      isInstancedMesh: object.isInstancedMesh || false,
+      isInstancedMesh: object.isInstancedMesh || false,  // FIX: Explicit flag for InstancedMesh detection
       geometry: object.geometry.toJSON(),
       material: object.material.toJSON(),
       matrix: object.matrix.toArray(),
